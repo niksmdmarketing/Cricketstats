@@ -1,0 +1,11 @@
+/opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/site-packages/rdata/conversion/_conversion.py:918: UserWarning: Missing constructor for R class "Date". The underlying R object is returned instead.
+  warnings.warn(
+/opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/site-packages/rdata/conversion/_conversion.py:918: UserWarning: Missing constructor for R class "tbl_df". The constructor for class "tbl" will be used instead.
+  warnings.warn(
+/opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/site-packages/rdata/conversion/_conversion.py:918: UserWarning: Missing constructor for R class "tbl". The constructor for class "data.frame" will be used instead.
+  warnings.warn(
+Downloading https://cricsheet.org/downloads/recently_added_7_json.zip
+78 files in zip, 0 new
+0 new matches, 0 recent enough to alert on
+sent 0 alerts
+sent 4 alerts
