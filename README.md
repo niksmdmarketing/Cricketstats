@@ -14,14 +14,18 @@ and links to the player and scorecard on Cricinfo to check the numbers first.
 ## What counts as post-worthy (ranked with TypeSafe, 27 Sep 2026)
 Scope: international matches between ICC full members (Tests, ODIs, T20Is, men and women).
 
+Recency framing wins: "First West Indian to score an ODI hundred in India since December 2019"
+scored 83% against 1% for "only the 6th West Indian ... since 2006". For every hundred, wicket
+haul and result the bot looks for the most striking "first since <date>" at these levels:
+in that country · against that opponent · at home · for the nation · for the player.
+
 | Tier | Angles | Sent as |
 |---|---|---|
-| Lead | star reaches a big milestone · star in a slump (last N innings) · passes a big name on the nation's all-time list · star out for a duck · "only the Kth Indian to…" · most by anyone against this opponent · maiden hundred/five-for | Own alert with draft post |
-| Support | best by the nation vs opponent · star's most expensive spell · first since <date> · lowest total vs opponent · win/losing streaks · pre-match watch list · career-best | Added to lead alerts; watch list before matches |
-| Quiet | career counts, venue records, highest total/chase, biggest win, small milestones | End-of-match notes digest |
+| Lead | "first since" (country / opponent / home / nation) · first win in a country since · first home defeat since · winning run ended · star's longest run without a fifty · "no fifty since <date>: N innings" · star duck · passes a big name on the all-time list · star milestone | Own alert with draft post |
+| Support | best by the nation vs opponent · maiden hundred/five-for · star's most expensive spell · score sequences · career-best | Added as "Also…" lines |
+| Quiet | career counts, venue records, highest totals, small milestones | End-of-match notes |
 
-Weights live in `alerts/nuggets.py` (`WEIGHT`, `LEAD_MIN`). A star is an established player
-(e.g. 40+ ODIs with 1,500 runs or 50 wickets since 2006).
+Weights: `alerts/nuggets.py` (`WEIGHT`, `LEAD_MIN`, `MIN_GAP_DAYS`).
 
 ## Setup
 1. Repo secret `TELEGRAM_BOT_TOKEN` (from @BotFather). Press **Start** in your bot once.

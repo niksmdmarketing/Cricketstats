@@ -263,17 +263,35 @@ def history_tables(con):
              CASE WHEN match_type IN ('T20','IT20') THEN 'T20I' ELSE match_type END AS format,
              city, venue, winner, win_by_runs, win_by_wickets, team1, team2
       FROM m WHERE team_type = 'international' AND match_type IN ('Test','ODI','T20','IT20')"""
+    # host country per city: the full member that plays (almost) every international there
+    from . import config as C
+    fm = sorted(C.FULL_MEMBERS)
+    hosts = con.execute(f"""
+      WITH mm AS (SELECT * FROM ({base}) WHERE team1 IN (SELECT UNNEST(?)) AND team2 IN (SELECT UNNEST(?))),
+           t AS (SELECT city, team1 AS team, match_id FROM mm UNION ALL SELECT city, team2, match_id FROM mm),
+           c AS (SELECT city, team, COUNT(DISTINCT match_id) n FROM t GROUP BY ALL),
+           tot AS (SELECT city, COUNT(DISTINCT match_id) n FROM mm GROUP BY city),
+           r AS (SELECT city, team, n, ROW_NUMBER() OVER (PARTITION BY city ORDER BY n DESC) rk FROM c)
+      SELECT a.city, a.team AS host, a.n * 1.0 / tot.n AS share, COALESCE(b.n, 0) * 1.0 / tot.n AS share2, tot.n
+      FROM r a JOIN tot USING (city) LEFT JOIN r b ON b.city = a.city AND b.rk = 2
+      WHERE a.rk = 1""", [fm, fm]).df()
+    hosts = hosts[(hosts.n >= 3) & (hosts.share >= 0.4) & (hosts.share >= 2 * hosts.share2)][["city", "host"]]
+    manual = pd.DataFrame(list(C.CITY_COUNTRY.items()), columns=["city", "host"])
+    hosts = pd.concat([manual, hosts[~hosts.city.isin(manual.city)]], ignore_index=True)
+    con.register("hosts_df", hosts)
+    base = base.replace("FROM m WHERE", "FROM m LEFT JOIN hosts_df USING (city) WHERE").replace(
+        "city, venue,", "city, host, venue,")
     bat = con.execute(f"""
-      SELECT b.match_id, mm.date, mm.gender, mm.format, mm.city, b.team, b.opp, b.innings,
+      SELECT b.match_id, mm.date, mm.gender, mm.format, mm.city, mm.host, b.team, b.opp, b.innings,
              b.player_id, b.player, b.runs::INT runs, b.balls::INT balls, b.is_out::INT is_out,
              b.fours::INT fours, b.sixes::INT sixes
       FROM bat b JOIN ({base}) mm USING (match_id)""").df()
     bowl = con.execute(f"""
-      SELECT b.match_id, mm.date, mm.gender, mm.format, mm.city, b.team, b.opp, b.innings,
+      SELECT b.match_id, mm.date, mm.gender, mm.format, mm.city, mm.host, b.team, b.opp, b.innings,
              b.player_id, b.player, b.wkts::INT wkts, b.runs::INT runs, b.balls::INT balls
       FROM bowl b JOIN ({base}) mm USING (match_id)""").df()
     team = con.execute(f"""
-      SELECT i.match_id, mm.date, mm.gender, mm.format, mm.city, i.team, i.opp, i.innings,
+      SELECT i.match_id, mm.date, mm.gender, mm.format, mm.city, mm.host, i.team, i.opp, i.innings,
              i.score::INT score, i.wkts::INT wkts, i.target, (mm.winner = i.team) AS won,
              mm.win_by_runs, mm.win_by_wickets
       FROM inns i JOIN ({base}) mm USING (match_id)""").df()

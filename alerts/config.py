@@ -59,3 +59,29 @@ MAX_PLAYER_LOOKUPS_PER_DAY = 15
 
 # Cricsheet coverage: careers that started before this year may be undercounted.
 COVERAGE_START = {"male": 2006, "female": 2011}
+
+
+# City -> host country for cities the automatic detection can't settle (neutral events etc.)
+CITY_COUNTRY = {
+    **{x: "India" for x in ["Mumbai", "Delhi", "Kolkata", "Chennai", "Bengaluru", "Bangalore", "Hyderabad",
+        "Ahmedabad", "Lucknow", "Dharamsala", "Pune", "Mohali", "Chandigarh", "Nagpur", "Rajkot", "Indore",
+        "Ranchi", "Guwahati", "Visakhapatnam", "Cuttack", "Kanpur", "Jaipur", "Thiruvananthapuram", "Raipur",
+        "Vadodara", "Navi Mumbai"]},
+    **{x: "Australia" for x in ["Sydney", "Melbourne", "Adelaide", "Perth", "Brisbane", "Hobart", "Canberra",
+        "Cairns", "Darwin", "Gold Coast", "Mackay", "Townsville", "Geelong"]},
+    **{x: "England" for x in ["London", "Birmingham", "Manchester", "Leeds", "Nottingham", "Southampton",
+        "Cardiff", "Bristol", "Chester-le-Street", "Taunton", "Hove", "Canterbury", "Chelmsford", "Derby",
+        "Northampton", "Worcester", "Leicester"]},
+    **{x: "South Africa" for x in ["Johannesburg", "Centurion", "Cape Town", "Durban", "Gqeberha", "Port Elizabeth",
+        "Paarl", "East London", "Bloemfontein", "Kimberley", "Potchefstroom", "Benoni", "Pietermaritzburg"]},
+    **{x: "New Zealand" for x in ["Auckland", "Wellington", "Christchurch", "Hamilton", "Napier", "Dunedin",
+        "Nelson", "Mount Maunganui", "Queenstown", "Whangarei", "New Plymouth"]},
+    **{x: "Pakistan" for x in ["Karachi", "Lahore", "Rawalpindi", "Multan", "Faisalabad", "Peshawar"]},
+    **{x: "Sri Lanka" for x in ["Colombo", "Kandy", "Galle", "Dambulla", "Hambantota", "Pallekele"]},
+    **{x: "Bangladesh" for x in ["Dhaka", "Mirpur", "Chattogram", "Chittagong", "Sylhet", "Khulna", "Fatullah"]},
+    **{x: "West Indies" for x in ["Barbados", "Bridgetown", "Guyana", "Providence", "Trinidad", "Port of Spain",
+        "Tarouba", "Jamaica", "Kingston", "Antigua", "North Sound", "St Lucia", "Gros Islet", "St Kitts",
+        "Basseterre", "Grenada", "St George's", "Dominica", "Roseau", "St Vincent", "Kingstown"]},
+    **{x: "Zimbabwe" for x in ["Harare", "Bulawayo"]},
+    **{x: "Ireland" for x in ["Dublin", "Malahide", "Belfast", "Bready", "Clontarf"]},
+}

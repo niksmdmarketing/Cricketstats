@@ -44,6 +44,7 @@ def events():
                     location=e.get("location") or "",
                     city=(e.get("location") or "").split(",")[-1].strip(),
                     short=e.get("shortName") or "",
+                    home=next((c.get("displayName") for c in e.get("competitors") or [] if c.get("homeAway") == "home"), None),
                 ))
     return out
 

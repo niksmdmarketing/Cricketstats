@@ -238,7 +238,7 @@ def _nuggets(ev, fmt, gender, teams, ci2cs, dn, hist, sent, seen):
     upto = pd.to_datetime(hb.date).max()
     out, quiet = [], []
 
-    def fix(txt):
+    def fix(txt):  # women's cricket
         return txt.replace("his ", "her ").replace(" him", " her").replace("he's", "she's") if gender == "female" else txt
 
     def add(key, subject, facts, label, ci=None):
@@ -256,22 +256,23 @@ def _nuggets(ev, fmt, gender, teams, ci2cs, dn, hist, sent, seen):
                  + f"\n<i>History: ball-by-ball records {N.COVER[gender]}–{upto:%d %b %Y}; matches after that not yet counted.</i>",
             caption=N.caption(subject, facts, tag), priority=best, cricinfo_player=ci))
 
+    host = N.host_for(ev["city"], _plain(ev.get("home") or ""), ht)
     for ci, p in d["players"].items():
         pid = ci2cs.get(ci)
         if not pid:
             continue
-        team = p["team"]
+        team = _plain(p["team"])
         opp = next((t for t in teams if t != team), None)
         name = dn.get(pid, p["name"])
         star = N.is_star(pid, f, gender, hb, hw)
         for inn, w, c in p["bowl"]:
-            subj, facts = N.bowling_facts(pid, name, team, opp, f, gender, ev["city"], w, c, 0, ev["id"], hb, hw, star)
+            subj, facts = N.bowling_facts(pid, name, team, opp, f, gender, host, ev["city"], w, c, ev["id"], hb, hw, star)
             if facts:
                 lvl = f"{5 if w >= 5 else 4 if w >= 4 else 0}:{c // 20}"
                 add(f"nug:{ev['id']}:{pid}:bowl:{inn}:{lvl}", subj, facts,
                     "bad day" if all(a in ("star_expensive", "wicketless_streak") for _, a, _ in facts) else "wicket haul", ci)
         for inn, r, b, o in p["bat"]:
-            subj, facts = N.batting_facts(pid, name, team, opp, f, gender, ev["city"], r, b, o, ev["id"], hb, star)
+            subj, facts = N.batting_facts(pid, name, team, opp, f, gender, host, ev["city"], r, b, o, ev["id"], hb, star)
             if facts:
                 lvl = 200 if r >= 200 else 150 if r >= 150 else 100 if r >= 100 else 50 if r >= 50 else f"low{o}"
                 add(f"nug:{ev['id']}:{pid}:bat:{inn}:{lvl}", subj, facts,
@@ -286,15 +287,12 @@ def _nuggets(ev, fmt, gender, teams, ci2cs, dn, hist, sent, seen):
                     if facts:
                         add(f"nug:{ev['id']}:{pid}:pass:{stat}:{facts[0][2][:40]}", f"{name}", facts, "all-time list", ci)
     # team facts once the match is over
-    if ev["status"] == "post" and d["innings"] and f != "Test":
-        inns = sorted(d["innings"], key=lambda x: x[1])
-        for i, (team, period, runs, wk, ov, target) in enumerate(inns[:2]):
-            opp = next((t for t in teams if t != team), None)
-            won = d["winner"] == team
-            margin = (runs - inns[1][2]) if (won and i == 0 and len(inns) > 1) else 0
-            facts = N.team_facts(team, opp, f, gender, ev["city"], runs, wk, won, won and i == 1, margin,
-                                 ev["id"], ht, all_out=wk >= 10)
-            add(f"nug:{ev['id']}:team:{team}", f"{team} {runs}/{wk}", facts, "team")
+    if ev["status"] == "post" and d["winner"]:
+        winner = _plain(d["winner"])
+        loser = next((t for t in teams if t != winner), None)
+        if loser:
+            facts = N.team_facts(winner, loser, f, gender, host, ev["id"], ht)
+            add(f"nug:{ev['id']}:team", "", facts, f"{winner} beat {loser}")
     # quiet digest of lower-tier facts, once per match at the end
     dkey = f"digest:{ev['id']}"
     if ev["status"] == "post" and quiet and dkey not in sent:
