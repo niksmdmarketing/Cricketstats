@@ -1,0 +1,31 @@
+name: Match status report
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['triggers/status']
+permissions:
+  contents: write
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - run: pip install requests pandas pyarrow
+      - env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        shell: bash
+        run: |
+          set -o pipefail
+          mkdir -p state
+          python -m alerts.run status 2>&1 | tail -c 20000 | tee state/last_status.log
+      - if: always()
+        run: |
+          git config user.name "cricket-alerts-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add state
+          git diff --cached --quiet || git commit -m "Status run"
+          git pull --rebase -q; git push -q || true

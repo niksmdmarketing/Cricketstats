@@ -110,6 +110,10 @@ def run(careers, sent, now=None):
     except Exception as e:  # noqa: BLE001
         print("ESPN events failed:", e)
         return alerts
+    focus = ROOT / "state" / "focus_matches"
+    if focus.exists():   # only follow the matches listed there
+        keep = set(focus.read_text().split())
+        evs = [e for e in evs if e["id"] in keep]
     ci2cs = ci_map()
     dn = display_names()
     cs2ci = {v: k for k, v in ci2cs.items()}
@@ -203,3 +207,43 @@ def run(careers, sent, now=None):
         if ev["status"] == "post":
             sent[fkey] = now.isoformat()
     return alerts
+
+
+def status(careers, event_ids):
+    """Progress report for chosen matches: live score + every player chasing a milestone."""
+    evs = [e for e in espn.events() if e["id"] in event_ids]
+    ci2cs = ci_map()
+    dn = display_names()
+    careers = careers.copy()
+    careers["last_match"] = pd.to_datetime(careers["last_match"])
+    msgs = []
+    for ev in evs:
+        fmt, gender, scopes, teams = classify(ev)
+        start = datetime.fromisoformat(ev["date"].replace("Z", "+00:00"))
+        mdate = pd.Timestamp(start.date())
+        sc = espn.scorecard(ev) if ev["status"] in ("in", "post") else {}
+        rows = []
+        for ci, s in sc.items():
+            pid = ci2cs.get(ci)
+            for r in careers[(careers.player_id == pid) & careers.scope.isin(scopes)].itertuples():
+                if r.last_match >= mdate:
+                    continue
+                kind = _kind(r.scope)
+                for stat, base, got in (("runs", int(r.runs), s["runs"]), ("wickets", int(r.wkts), s["wkts"])):
+                    mark, low = _next_mark(base, stat, kind, fmt)
+                    thr = (C.WATCH_RUNS if stat == "runs" else C.WATCH_WKTS)[fmt]
+                    if mark < low or mark - base > thr or (stat == "wickets" and base == 0):
+                        continue
+                    left = mark - base - got
+                    icon = "✅" if left <= 0 else "⏳"
+                    rows.append((left, f"{icon} {dn.get(pid, s['name'])}: {got} {stat} today · "
+                                       + (f"reached {mark:,} {scope_name(r.scope)} {stat}!" if left <= 0
+                                          else f"{left} more for {mark:,} {scope_name(r.scope)} {stat}")))
+        top = sorted(sc.values(), key=lambda v: -v["runs"])[:3]
+        topb = sorted([v for v in sc.values() if v["wkts"]], key=lambda v: -v["wkts"])[:3]
+        lines = [f"<b>{ev['name']}</b> · {ev['summary']}",
+                 "Top bats: " + (", ".join(f"{v['name']} {v['runs']} ({v['balls']})" for v in top) or "-"),
+                 "Top bowlers: " + (", ".join(f"{v['name']} {v['wkts']}w" for v in topb) or "-"),
+                 "", "<b>Milestone chase</b>"] + ([t for _, t in sorted(rows)] or ["Nobody within range in this match."])
+        msgs.append("\n".join(lines))
+    return msgs

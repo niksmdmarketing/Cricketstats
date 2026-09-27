@@ -136,6 +136,15 @@ def live():
     save_sent(sent)
 
 
+def status():
+    """Send a progress report for the matches listed in state/focus_matches (ESPN event ids)."""
+    from . import watch
+    ids = (STATE / "focus_matches").read_text().split()
+    for msg in watch.status(pd.read_parquet(CAREERS), set(ids)):
+        tg.send(msg)
+    print(f"sent status for {len(ids)} matches")
+
+
 def test():
     tg.send("✅ <b>Cricket alerts connected.</b>\nYou'll get record, milestone and watch-list alerts here.",
             [("📝 Example: Post on X", tg.x_intent("Testing my cricket stats alerts 🏏"))])
@@ -146,7 +155,7 @@ if __name__ == "__main__":
     import os
     import traceback
     try:
-        {"daily": daily, "live": live, "test": test}[sys.argv[1] if len(sys.argv) > 1 else "daily"]()
+        {"daily": daily, "live": live, "test": test, "status": status}[sys.argv[1] if len(sys.argv) > 1 else "daily"]()
     except Exception:  # print the error with the bot token removed (logs are public)
         tok = os.environ.get("TELEGRAM_BOT_TOKEN") or "~no-token~"
         print(traceback.format_exc().replace(tok, "***"))
