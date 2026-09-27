@@ -7,6 +7,9 @@ FULL_MEMBERS = {
     "New Zealand", "Pakistan", "South Africa", "Sri Lanka", "West Indies", "Zimbabwe",
 }
 
+# Only follow international matches between two full members (Tests, ODIs, T20Is, men and women)
+INTERNATIONALS_ONLY = True
+
 # Competitions (labels from label_competition) whose records are worth a post.
 MAJOR_LEAGUES = {
     "Indian Premier League", "Big Bash League", "Women's Big Bash League",
@@ -31,7 +34,7 @@ MILESTONES = {
 }
 # Smallest milestone worth flagging per scope type: (runs, wickets)
 MIN_MILESTONE = {
-    "international": (1000, 50),
+    "international": (2000, 100),
     "t20_all": (5000, 200),
     "league": (1000, 50),
 }

@@ -62,7 +62,7 @@ def esc(s):
     return html.escape(str(s))
 
 
-LABEL = {"record": "🏆 RECORD", "rare": "⚡ RARE", "milestone": "🎯 MILESTONE",
+LABEL = {"nugget": "📊 STAT", "digest": "🗒 MATCH NOTES", "record": "🏆 RECORD", "rare": "⚡ RARE", "milestone": "🎯 MILESTONE",
          "live": "🔴 LIVE MILESTONE", "watch": "👀 WATCH"}
 
 
@@ -72,11 +72,13 @@ def send_alert(a):
     if a.get("match"):
         lines.append(f"{esc(a['match'])} · {esc(a.get('date', ''))}")
     if a.get("note"):
-        lines.append(f"<i>{esc(a['note'])}</i>")
+        lines.append(esc(a["note"]).replace("&lt;i&gt;", "<i>").replace("&lt;/i&gt;", "</i>"))
     if a.get("needs_check"):
         lines.append("⚠️ <i>Check the official figure before posting. Early career matches may be missing from the data.</i>")
-    lines += ["", "<b>Draft post:</b>", esc(a["caption"])]
-    buttons = [("📝 Post on X", x_intent(a["caption"]))]
+    buttons = []
+    if a["kind"] != "digest":
+        lines += ["", "<b>Draft post:</b>", esc(a["caption"])]
+        buttons.append(("📝 Post on X", x_intent(a["caption"])))
     if a.get("cricinfo_player"):
         buttons.append(("🔎 Player on Cricinfo", f"https://www.espncricinfo.com/ci/content/player/{a['cricinfo_player']}.html"))
     if a.get("match_id") and str(a["match_id"]).isdigit():

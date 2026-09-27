@@ -43,6 +43,8 @@ def connect():
 
 def _eligible(mrow):
     comp = mrow["competition"]
+    if C.INTERNATIONALS_ONLY:
+        return mrow["team_type"] == "international" and {mrow["team1"], mrow["team2"]} <= C.FULL_MEMBERS
     if comp in C.MAJOR_LEAGUES:
         return True
     if mrow["team_type"] == "international":
@@ -233,6 +235,8 @@ def milestone_alerts(before, after, new_ids_players):
             continue
         if r.kind == "league" and r.scope not in C.T20_LEAGUES:
             continue
+        if C.INTERNATIONALS_ONLY and r.kind != "international":
+            continue
         rs, ws = C.MILESTONES[r.kind]
         mins = C.MIN_MILESTONE[r.kind]
         for stat, step, now, prev, low in (("runs", rs, r.runs, r.runs_before, mins[0]),
@@ -249,3 +253,28 @@ def milestone_alerts(before, after, new_ids_players):
                     caption=f"{mark:,} {scope_name(r.scope)} {stat.upper()} 🙌\n\n{r.player} brings up {mark:,} {scope_name(r.scope)} {stat}.\n\n#Cricket",
                     needs_check=bool(partial), priority={"international": 84, "league": 76, "t20_all": 74}[r.kind]))
     return out
+
+
+# ---------------------------------------------------------------- history for stat nuggets
+def history_tables(con):
+    """Innings-level history for internationals: batting, bowling and team innings."""
+    base = """
+      SELECT match_id, start_date::DATE AS date, gender,
+             CASE WHEN match_type IN ('T20','IT20') THEN 'T20I' ELSE match_type END AS format,
+             city, venue, winner, win_by_runs, win_by_wickets, team1, team2
+      FROM m WHERE team_type = 'international' AND match_type IN ('Test','ODI','T20','IT20')"""
+    bat = con.execute(f"""
+      SELECT b.match_id, mm.date, mm.gender, mm.format, mm.city, b.team, b.opp, b.innings,
+             b.player_id, b.player, b.runs::INT runs, b.balls::INT balls, b.is_out::INT is_out,
+             b.fours::INT fours, b.sixes::INT sixes
+      FROM bat b JOIN ({base}) mm USING (match_id)""").df()
+    bowl = con.execute(f"""
+      SELECT b.match_id, mm.date, mm.gender, mm.format, mm.city, b.team, b.opp, b.innings,
+             b.player_id, b.player, b.wkts::INT wkts, b.runs::INT runs, b.balls::INT balls
+      FROM bowl b JOIN ({base}) mm USING (match_id)""").df()
+    team = con.execute(f"""
+      SELECT i.match_id, mm.date, mm.gender, mm.format, mm.city, i.team, i.opp, i.innings,
+             i.score::INT score, i.wkts::INT wkts, i.target, (mm.winner = i.team) AS won,
+             mm.win_by_runs, mm.win_by_wickets
+      FROM inns i JOIN ({base}) mm USING (match_id)""").df()
+    return bat, bowl, team

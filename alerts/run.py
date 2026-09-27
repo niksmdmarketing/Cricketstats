@@ -115,6 +115,10 @@ def daily():
             full = dn.get(a["player_id"])
             if full and a.get("player"):
                 a["caption"] = a["caption"].replace(a["player"], full)
+    hb, hw, ht = stats.history_tables(con)
+    hb.to_parquet(STATE / "hist_bat.parquet", index=False)
+    hw.to_parquet(STATE / "hist_bowl.parquet", index=False)
+    ht.to_parquet(STATE / "hist_team.parquet", index=False)
     keep = after[pd.to_datetime(after.last_match) >= pd.Timestamp.now() - pd.Timedelta(days=3 * 365)]
     STATE.mkdir(exist_ok=True)
     keep.to_parquet(CAREERS, index=False)

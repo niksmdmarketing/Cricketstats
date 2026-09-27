@@ -41,10 +41,13 @@ def classify(ev):
     if ev["intl_class"] in INTL:
         f, gender = INTL[ev["intl_class"]]
         sex = "Men's" if gender == "male" else "Women's"
-        if not (set(plain) & C.FULL_MEMBERS):
+        both = set(plain) <= C.FULL_MEMBERS
+        if not both if C.INTERNATIONALS_ONLY else not (set(plain) & C.FULL_MEMBERS):
             return None, None, [], []
         scopes.append(f"{sex} {f}")
         fmt = "T20" if f == "T20I" else f
+    elif C.INTERNATIONALS_ONLY:
+        return None, None, [], []
     else:
         text = f"{ev['league']} {ev['description']}".lower()
         if re.search(r"under-?19|u19", text):
@@ -61,7 +64,7 @@ def classify(ev):
             return None, None, [], []
         scopes.append(comp)
         fmt = "T20"
-    if fmt == "T20":
+    if fmt == "T20" and not C.INTERNATIONALS_ONLY:
         scopes.append(f"T20 (all, {'men' if gender == 'male' else 'women'})")
     return fmt, gender, scopes, plain
 
@@ -116,6 +119,8 @@ def run(careers, sent, now=None):
         evs = [e for e in evs if e["id"] in keep]
     ci2cs = ci_map()
     dn = display_names()
+    from .nuggets import load_history
+    hist = load_history()
     cs2ci = {v: k for k, v in ci2cs.items()}
     careers = careers.copy()
     careers["last_match"] = pd.to_datetime(careers["last_match"])
@@ -137,13 +142,19 @@ def run(careers, sent, now=None):
             pool = careers[careers.scope.isin(team_scopes) & careers.team.isin(teams) & (careers.last_match >= active_since)]
             ids = set(pool.player_id)
             items = []
+            from . import nuggets as N
+            fN = {"T20": "T20I"}.get(fmt, fmt)
             for r in careers[careers.scope.isin(scopes) & careers.player_id.isin(ids)].itertuples():
                 kind = _kind(r.scope)
+                if hist is not None and not N.is_star(r.player_id, fN, gender, hist[0], hist[1]):
+                    continue
                 for stat, val in (("runs", int(r.runs)), ("wickets", int(r.wkts))):
                     mark, low = _next_mark(val, stat, kind, fmt)
                     need = mark - val
                     thr = (C.WATCH_RUNS if stat == "runs" else C.WATCH_WKTS)[fmt]
                     if mark < low or need > thr or (stat == "wickets" and val == 0):
+                        continue
+                    if C.INTERNATIONALS_ONLY and mark < N.BIG_MILESTONE[stat]:
                         continue
                     items.append((need / thr, r, stat, val, mark, need, kind))
             items.sort(key=lambda x: x[0])
@@ -181,6 +192,10 @@ def run(careers, sent, now=None):
             pid = ci2cs.get(ci)
             if not pid:
                 continue
+            if hist is not None:
+                from . import nuggets as N
+                if not N.is_star(pid, {"T20": "T20I"}.get(fmt, fmt), gender, hist[0], hist[1]):
+                    continue
             rows = careers[(careers.player_id == pid) & careers.scope.isin(scopes)]
             for r in rows.itertuples():
                 if r.last_match >= mdate:      # this match already in the Cricsheet totals
@@ -189,6 +204,8 @@ def run(careers, sent, now=None):
                 for stat, base, got in (("runs", int(r.runs), s["runs"]), ("wickets", int(r.wkts), s["wkts"])):
                     mark, low = _next_mark(base, stat, kind, fmt)
                     if got <= 0 or base + got < mark or mark < low:
+                        continue
+                    if C.INTERNATIONALS_ONLY and mark < N.BIG_MILESTONE[stat]:
                         continue
                     key = f"ms:{r.scope}:{pid}:{stat}:{mark}"
                     if key in sent or key in seen:
@@ -204,46 +221,86 @@ def run(careers, sent, now=None):
                         note=f"Before this match: {base:,} (Cricsheet). This match: {got} {stat}. {ev['summary']}",
                         caption=f"{mark:,} {sn} {stat.upper()} 🙌\n\n{s['name']} brings up {mark:,} {sn} {stat} for {s['team']}.\n\n#Cricket",
                         priority=95))
+        # ---- stat nuggets for big performances (internationals)
+        if hist is not None and fmt:
+            alerts += _nuggets(ev, fmt, gender, teams, ci2cs, dn, hist, sent, seen)
         if ev["status"] == "post":
             sent[fkey] = now.isoformat()
     return alerts
 
 
-def status(careers, event_ids):
-    """Progress report for chosen matches: live score + every player chasing a milestone."""
-    evs = [e for e in espn.events() if e["id"] in event_ids]
-    ci2cs = ci_map()
-    dn = display_names()
-    careers = careers.copy()
-    careers["last_match"] = pd.to_datetime(careers["last_match"])
-    msgs = []
-    for ev in evs:
-        fmt, gender, scopes, teams = classify(ev)
-        start = datetime.fromisoformat(ev["date"].replace("Z", "+00:00"))
-        mdate = pd.Timestamp(start.date())
-        sc = espn.scorecard(ev) if ev["status"] in ("in", "post") else {}
-        rows = []
-        for ci, s in sc.items():
-            pid = ci2cs.get(ci)
-            for r in careers[(careers.player_id == pid) & careers.scope.isin(scopes)].itertuples():
-                if r.last_match >= mdate:
-                    continue
-                kind = _kind(r.scope)
-                for stat, base, got in (("runs", int(r.runs), s["runs"]), ("wickets", int(r.wkts), s["wkts"])):
-                    mark, low = _next_mark(base, stat, kind, fmt)
-                    thr = (C.WATCH_RUNS if stat == "runs" else C.WATCH_WKTS)[fmt]
-                    if mark < low or mark - base > thr or (stat == "wickets" and base == 0):
-                        continue
-                    left = mark - base - got
-                    icon = "✅" if left <= 0 else "⏳"
-                    rows.append((left, f"{icon} {dn.get(pid, s['name'])}: {got} {stat} today · "
-                                       + (f"reached {mark:,} {scope_name(r.scope)} {stat}!" if left <= 0
-                                          else f"{left} more for {mark:,} {scope_name(r.scope)} {stat}")))
-        top = sorted(sc.values(), key=lambda v: -v["runs"])[:3]
-        topb = sorted([v for v in sc.values() if v["wkts"]], key=lambda v: -v["wkts"])[:3]
-        lines = [f"<b>{ev['name']}</b> · {ev['summary']}",
-                 "Top bats: " + (", ".join(f"{v['name']} {v['runs']} ({v['balls']})" for v in top) or "-"),
-                 "Top bowlers: " + (", ".join(f"{v['name']} {v['wkts']}w" for v in topb) or "-"),
-                 "", "<b>Milestone chase</b>"] + ([t for _, t in sorted(rows)] or ["Nobody within range in this match."])
-        msgs.append("\n".join(lines))
-    return msgs
+def _nuggets(ev, fmt, gender, teams, ci2cs, dn, hist, sent, seen):
+    from . import nuggets as N
+    hb, hw, ht = hist
+    f = {"T20": "T20I"}.get(fmt, fmt)
+    d = espn.detail(ev)
+    tag = "#" + ev["short"].replace(" ", "") if ev.get("short") else "#Cricket"
+    upto = pd.to_datetime(hb.date).max()
+    out, quiet = [], []
+
+    def fix(txt):
+        return txt.replace("his ", "her ").replace(" him", " her").replace("he's", "she's") if gender == "female" else txt
+
+    def add(key, subject, facts, label, ci=None):
+        if not facts or key in sent or key in seen:
+            return
+        seen.add(key)
+        facts = [(sc, ang, fix(t)) for sc, ang, t in facts]
+        best = max(sc for sc, _, _ in facts)
+        if best < N.LEAD_MIN:
+            quiet.append((key, f"{subject}: " + "; ".join(t for _, _, t in sorted(facts, key=lambda x: -x[0])[:2])))
+            return
+        out.append(dict(kind="nugget", key=key, competition=f"{'Men' if gender == 'male' else 'Women'}'s {f}",
+            headline=f"{subject} · {label}", match=ev["name"], date=ev["date"][:10], match_id=ev["id"],
+            note="\n".join(f"• {t}" for _, _, t in sorted(facts, key=lambda x: -x[0]))
+                 + f"\n<i>History: ball-by-ball records {N.COVER[gender]}–{upto:%d %b %Y}; matches after that not yet counted.</i>",
+            caption=N.caption(subject, facts, tag), priority=best, cricinfo_player=ci))
+
+    for ci, p in d["players"].items():
+        pid = ci2cs.get(ci)
+        if not pid:
+            continue
+        team = p["team"]
+        opp = next((t for t in teams if t != team), None)
+        name = dn.get(pid, p["name"])
+        star = N.is_star(pid, f, gender, hb, hw)
+        for inn, w, c in p["bowl"]:
+            subj, facts = N.bowling_facts(pid, name, team, opp, f, gender, ev["city"], w, c, 0, ev["id"], hb, hw, star)
+            if facts:
+                lvl = f"{5 if w >= 5 else 4 if w >= 4 else 0}:{c // 20}"
+                add(f"nug:{ev['id']}:{pid}:bowl:{inn}:{lvl}", subj, facts,
+                    "bad day" if all(a in ("star_expensive", "wicketless_streak") for _, a, _ in facts) else "wicket haul", ci)
+        for inn, r, b, o in p["bat"]:
+            subj, facts = N.batting_facts(pid, name, team, opp, f, gender, ev["city"], r, b, o, ev["id"], hb, star)
+            if facts:
+                lvl = 200 if r >= 200 else 150 if r >= 150 else 100 if r >= 100 else 50 if r >= 50 else f"low{o}"
+                add(f"nug:{ev['id']}:{pid}:bat:{inn}:{lvl}", subj, facts,
+                    "bad day" if all(a in ("star_duck", "star_slump") for _, a, _ in facts) else "batting", ci)
+        # passing big names on the nation's list (stars only)
+        if star:
+            me_b = hb[(hb.player_id == pid) & (hb.format == f) & (hb.gender == gender) & (hb.match_id.astype(str) != ev["id"])]
+            me_w = hw[(hw.player_id == pid) & (hw.format == f) & (hw.gender == gender) & (hw.match_id.astype(str) != ev["id"])]
+            for stat, before, got, hh in (("runs", int(me_b.runs.sum()), p["runs"], hb), ("wickets", int(me_w.wkts.sum()), p["wkts"], hw)):
+                if got > 0:
+                    facts = N.passes(pid, name, team, f, gender, stat, before, before + got, hh)
+                    if facts:
+                        add(f"nug:{ev['id']}:{pid}:pass:{stat}:{facts[0][2][:40]}", f"{name}", facts, "all-time list", ci)
+    # team facts once the match is over
+    if ev["status"] == "post" and d["innings"] and f != "Test":
+        inns = sorted(d["innings"], key=lambda x: x[1])
+        for i, (team, period, runs, wk, ov, target) in enumerate(inns[:2]):
+            opp = next((t for t in teams if t != team), None)
+            won = d["winner"] == team
+            margin = (runs - inns[1][2]) if (won and i == 0 and len(inns) > 1) else 0
+            facts = N.team_facts(team, opp, f, gender, ev["city"], runs, wk, won, won and i == 1, margin,
+                                 ev["id"], ht, all_out=wk >= 10)
+            add(f"nug:{ev['id']}:team:{team}", f"{team} {runs}/{wk}", facts, "team")
+    # quiet digest of lower-tier facts, once per match at the end
+    dkey = f"digest:{ev['id']}"
+    if ev["status"] == "post" and quiet and dkey not in sent:
+        out.append(dict(kind="digest", key=dkey, competition=f, headline=f"Other notes: {ev['name']}",
+            match=ev["name"], date=ev["date"][:10], match_id=ev["id"],
+            note="\n".join(f"• {t}" for _, t in quiet[:15]), caption=f"{ev['name']} notes\n\n{tag}", priority=10))
+        for k, _ in quiet:
+            sent[k] = pd.Timestamp.now().isoformat()
+    return out
