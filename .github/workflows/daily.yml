@@ -4,6 +4,9 @@ on:
     - cron: "40 20 * * *"   # 6:40am Melbourne (AEST)
     - cron: "40 8 * * *"    # 6:40pm Melbourne
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['triggers/daily']
 permissions:
   contents: write
 concurrency: { group: alerts, cancel-in-progress: false }
