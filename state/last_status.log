@@ -1,11 +1,1 @@
-Traceback (most recent call last):
-  File "/home/runner/work/Cricketstats/Cricketstats/alerts/run.py", line 158, in <module>
-    {"daily": daily, "live": live, "test": test, "status": status}[sys.argv[1] if len(sys.argv) > 1 else "daily"]()
-  File "/home/runner/work/Cricketstats/Cricketstats/alerts/run.py", line 141, in status
-    from . import watch
-  File "/home/runner/work/Cricketstats/Cricketstats/alerts/watch.py", line 11, in <module>
-    from .stats import scope_name
-  File "/home/runner/work/Cricketstats/Cricketstats/alerts/stats.py", line 4, in <module>
-    import duckdb
-ModuleNotFoundError: No module named 'duckdb'
-
+sent status for 2 matches
