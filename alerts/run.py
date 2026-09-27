@@ -73,7 +73,7 @@ def refresh_names():
 
 def daily():
     from . import build_data, stats
-    first_run = not (ROOT / "data" / "matches.parquet").exists() or not load_sent()
+    first_run = not (STATE / "daily_done").exists()
     new_ids = build_data.update()
     con = stats.connect()
     if first_run:   # nothing delivered yet: alert on the last few days so there's something to see
@@ -116,6 +116,7 @@ def daily():
     sent = load_sent()
     deliver(alerts, sent)
     save_sent(sent)
+    (STATE / "daily_done").write_text(datetime.now(timezone.utc).isoformat())
     live()
 
 
