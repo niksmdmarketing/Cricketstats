@@ -134,4 +134,11 @@ def test():
 
 
 if __name__ == "__main__":
-    {"daily": daily, "live": live, "test": test}[sys.argv[1] if len(sys.argv) > 1 else "daily"]()
+    import os
+    import traceback
+    try:
+        {"daily": daily, "live": live, "test": test}[sys.argv[1] if len(sys.argv) > 1 else "daily"]()
+    except Exception:  # print the error with the bot token removed (logs are public)
+        tok = os.environ.get("TELEGRAM_BOT_TOKEN") or "~no-token~"
+        print(traceback.format_exc().replace(tok, "***"))
+        sys.exit(1)

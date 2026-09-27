@@ -18,10 +18,13 @@ def _token():
 
 
 def _api(method, **payload):
-    r = requests.post(f"https://api.telegram.org/bot{_token()}/{method}", json=payload, timeout=30)
-    js = r.json()
+    try:
+        r = requests.post(f"https://api.telegram.org/bot{_token()}/{method}", json=payload, timeout=30)
+        js = r.json()
+    except Exception as e:  # noqa: BLE001  (hide the URL, it contains the token)
+        raise RuntimeError(f"Telegram {method}: network error {type(e).__name__}") from None
     if not js.get("ok"):
-        raise RuntimeError(f"Telegram {method} failed: {js.get('description')}")
+        raise RuntimeError(f"Telegram {method} failed: {js.get('description')} (code {js.get('error_code')})")
     return js["result"]
 
 

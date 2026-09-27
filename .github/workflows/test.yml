@@ -17,10 +17,15 @@ jobs:
       - env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-        run: python -m alerts.run test
-      - run: |
+        shell: bash
+        run: |
+          set -o pipefail
+          mkdir -p state
+          python -m alerts.run test 2>&1 | tail -c 20000 | tee state/last_test.log
+      - if: always()
+        run: |
           git config user.name "cricket-alerts-bot"
           git config user.email "actions@users.noreply.github.com"
           git add state
           git diff --cached --quiet || git commit -m "Save chat id"
-          git push -q || true
+          git pull --rebase -q; git push -q || true

@@ -29,7 +29,11 @@ jobs:
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-        run: python -m alerts.run daily
+        shell: bash
+        run: |
+          set -o pipefail
+          mkdir -p state
+          python -m alerts.run daily 2>&1 | tail -c 20000 | tee state/last_daily.log
       - name: Save match data
         if: always()
         uses: actions/cache/save@v4
