@@ -36,7 +36,12 @@ def update(full=False):
     have = set(pd.read_parquet(mpath, columns=["match_id"]).match_id) if mpath.exists() and not full else set()
     url = ZIP_URL if (full or not have) else RECENT_URL
     print("Downloading", url)
-    z = zipfile.ZipFile(io.BytesIO(_download(url)))
+    raw = _download(url)
+    try:
+        z = zipfile.ZipFile(io.BytesIO(raw))
+    except zipfile.BadZipFile:
+        print("Cricsheet did not return a zip (will retry next run). First bytes:", raw[:120])
+        return []
     names = [n for n in z.namelist() if n.endswith(".json")]
     new_ids = [Path(n).stem for n in names if Path(n).stem not in have]
     print(f"{len(names)} files in zip, {len(new_ids)} new")
