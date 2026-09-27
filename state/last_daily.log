@@ -1,16 +1,12 @@
+/opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/site-packages/rdata/conversion/_conversion.py:918: UserWarning: Missing constructor for R class "Date". The underlying R object is returned instead.
+  warnings.warn(
+/opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/site-packages/rdata/conversion/_conversion.py:918: UserWarning: Missing constructor for R class "tbl_df". The constructor for class "tbl" will be used instead.
+  warnings.warn(
+/opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/site-packages/rdata/conversion/_conversion.py:918: UserWarning: Missing constructor for R class "tbl". The constructor for class "data.frame" will be used instead.
+  warnings.warn(
 Downloading https://cricsheet.org/downloads/recently_added_7_json.zip
-Traceback (most recent call last):
-  File "/home/runner/work/Cricketstats/Cricketstats/alerts/run.py", line 149, in <module>
-    {"daily": daily, "live": live, "test": test}[sys.argv[1] if len(sys.argv) > 1 else "daily"]()
-  File "/home/runner/work/Cricketstats/Cricketstats/alerts/run.py", line 79, in daily
-    new_ids = build_data.update()
-              ^^^^^^^^^^^^^^^^^^^
-  File "/home/runner/work/Cricketstats/Cricketstats/alerts/build_data.py", line 39, in update
-    z = zipfile.ZipFile(io.BytesIO(_download(url)))
-        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/zipfile/__init__.py", line 1371, in __init__
-    self._RealGetContents()
-  File "/opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/zipfile/__init__.py", line 1438, in _RealGetContents
-    raise BadZipFile("File is not a zip file")
-zipfile.BadZipFile: File is not a zip file
-
+78 files in zip, 0 new
+latest match in data: 2026-09-17 00:00:00
+0 new matches, 0 recent enough to alert on
+sent 0 alerts
+sent 0 alerts
