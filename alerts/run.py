@@ -73,9 +73,12 @@ def refresh_names():
 
 def daily():
     from . import build_data, stats
-    first_run = not (ROOT / "data" / "matches.parquet").exists()
+    first_run = not (ROOT / "data" / "matches.parquet").exists() or not load_sent()
     new_ids = build_data.update()
     con = stats.connect()
+    if first_run:   # nothing delivered yet: alert on the last few days so there's something to see
+        new_ids = [r[0] for r in con.execute("SELECT match_id FROM m WHERE start_date >= ?",
+                                             [pd.Timestamp.now() - pd.Timedelta(days=4)]).fetchall()]
     if new_ids:
         recent_cut = pd.Timestamp.now() - pd.Timedelta(days=4 if first_run else 10)
         recent = [r[0] for r in con.execute(
