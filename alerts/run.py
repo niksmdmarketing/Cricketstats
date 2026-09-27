@@ -74,13 +74,18 @@ def refresh_names():
 def daily():
     from . import build_data, stats
     first_run = not (STATE / "daily_done").exists()
+    bf = STATE / "backfill_days"
+    backfill = int(bf.read_text().strip()) if bf.exists() else (4 if first_run else 0)
     new_ids = build_data.update()
     con = stats.connect()
-    if first_run:   # nothing delivered yet: alert on the last few days so there's something to see
+    print("latest match in data:", con.execute("SELECT MAX(start_date) FROM m").fetchone()[0])
+    if backfill:   # re-check recent matches (first run, or on request)
         new_ids = [r[0] for r in con.execute("SELECT match_id FROM m WHERE start_date >= ?",
-                                             [pd.Timestamp.now() - pd.Timedelta(days=4)]).fetchall()]
+                                             [pd.Timestamp.now() - pd.Timedelta(days=backfill)]).fetchall()]
+        if bf.exists():
+            bf.unlink()
     if new_ids:
-        recent_cut = pd.Timestamp.now() - pd.Timedelta(days=4 if first_run else 10)
+        recent_cut = pd.Timestamp.now() - pd.Timedelta(days=max(backfill, 10))
         recent = [r[0] for r in con.execute(
             "SELECT match_id FROM m WHERE match_id IN (SELECT UNNEST(?)) AND start_date >= ?",
             [new_ids, recent_cut]).fetchall()]
