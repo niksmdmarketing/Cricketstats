@@ -96,11 +96,17 @@ class Legends:
         """gained: this match's contribution to the stat. Returns fact tuples via fact(angle, text, bonus)."""
         if not self.ok or gained <= 0:
             return []
+        included = False
         if match_date is not None and pd.Timestamp(match_date).normalize() <= self.snapshot:
-            return []   # snapshot may already include this match
+            # a match from the few days before the weekly snapshot is already in it
+            if (self.snapshot - pd.Timestamp(match_date).normalize()).days > 3:
+                return []
+            included = True
         before, t = self.value(pid, stat, fmt, gender, hb, hw, exclude_match=match_id)
         if before is None:
             return []
+        if included:
+            before -= gained
         now = before + gained
         short = t["name"].map(_surname)
         dup = set(short[short.duplicated()])

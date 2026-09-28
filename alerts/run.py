@@ -195,6 +195,56 @@ def morning():
     print(f"morning pack: {len(posts)} posts, {len(digest)} digest items")
 
 
+def match():
+    """Run the stat engine on specific finished matches: python -m alerts.run match LEAGUE:EVENT ... [--send]"""
+    from . import espn, live_angles, rotation
+    from .watch import ci_map, classify, _plain
+    from . import nuggets as N
+    import alerts.config as C
+    args = [a for a in sys.argv[2:] if ":" in a]
+    send = "--send" in sys.argv
+    ctx = live_angles.load_context()
+    ci2cs = ci_map()
+    log = rotation.load()
+    sent = load_sent() if send else {}
+    out = []
+    for a in args:
+        lg, eid = a.split(":")
+        js = espn._get(espn.SUMMARY.format(league=lg), event=eid)
+        comp = ((js.get("header") or {}).get("competitions") or [{}])[0]
+        cs = comp.get("competitors") or []
+        venue = ((js.get("gameInfo") or {}).get("venue") or {})
+        cls = comp.get("class") or {}
+        ev = dict(id=eid, league_id=lg, league=((js.get("header") or {}).get("league") or {}).get("name", ""),
+                  name=" v ".join((c.get("team") or {}).get("displayName", "") for c in cs),
+                  description=comp.get("description") or "", date=comp.get("date") or "",
+                  status=((comp.get("status") or {}).get("type") or {}).get("state", "post"),
+                  summary=((comp.get("status") or {}).get("summary")) or "",
+                  intl_class=str(cls.get("internationalClassId") or "0"),
+                  teams=[(c.get("team") or {}).get("displayName") for c in cs],
+                  city=((venue.get("address") or {}).get("city")) or "", location=venue.get("fullName") or "",
+                  short=((js.get("header") or {}).get("competitions") or [{}])[0].get("shortName", "") or "",
+                  home=next(((c.get("team") or {}).get("displayName") for c in cs if c.get("homeAway") == "home"), None))
+        espn._cache.pop(eid, None)
+        fmt, gender, scopes, teams = classify(ev)
+        if not scopes:
+            print("not in scope:", ev["name"], ev["intl_class"])
+            continue
+        host = None if scopes[0] in C.NUGGET_LEAGUES else N.host_for(ev["city"], _plain(ev.get("home") or ""), ctx.ht)
+        tag = "#" + ev["short"].replace(" ", "") if ev.get("short") else "#Cricket"
+        got = live_angles.match_alerts(ev, fmt, gender, scopes[0], teams, ci2cs, host, sent, set(), log, tag)
+        print(ev["name"], ev["description"], ev["city"], "->", len(got), "alerts")
+        out += got
+    lines = []
+    for a in sorted(out, key=lambda a: -a.get("priority", 0)):
+        lines.append(f"[{a.get('priority')}] {a.get('family', a.get('kind'))} | {a.get('headline')}\n{a.get('caption')}\n{a.get('note', '')}\n")
+    (STATE / "last_match.log").write_text("\n".join(lines) or "nothing")
+    if send:
+        deliver(out, sent)
+        save_sent(sent)
+        rotation.save(log)
+
+
 def build():
     """Refresh data, history tables and player metadata without sending anything."""
     from . import build_data, history, stats
@@ -243,7 +293,7 @@ if __name__ == "__main__":
     import os
     import traceback
     try:
-        {"daily": daily, "live": live, "test": test, "status": status, "preview": preview, "build": build, "morning": morning}[sys.argv[1] if len(sys.argv) > 1 else "daily"]()
+        {"daily": daily, "live": live, "test": test, "status": status, "preview": preview, "build": build, "morning": morning, "match": match}[sys.argv[1] if len(sys.argv) > 1 else "daily"]()
     except Exception:  # print the error with the bot token removed (logs are public)
         tok = os.environ.get("TELEGRAM_BOT_TOKEN") or "~no-token~"
         print(traceback.format_exc().replace(tok, "***"))
