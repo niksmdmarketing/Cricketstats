@@ -306,7 +306,8 @@ def drought(ctx, p, hit, verb, noun, mates=()):
                     named = f" since his own in {when(last.date)}"
                 else:
                     named = f" since {ctx.nm(last.player_id, last.player)} in {when(last.date)}"
-                out.append(F("drought", lead + named + also, strength=min(12, gap // 365 * 2) + (6 if lens in ("country", "opp") else 0)))
+                self_ = last.player_id == p.pid     # "since his own" is weaker than beating someone else's
+                out.append(F("drought", lead + named + also, strength=min(12, gap // 365 * 2) + (6 if lens in ("country", "opp") else 0) - (14 if self_ else 0)))
                 break
         elif lens in ("country", "opp", "city") and _games(ctx, p, lens) >= need + 2:
             out.append(F("drought", lead + (" ever" if era(p, ctx) == "ever" else f" in records going back to {COVER[p.gender]}") + also, strength=8))
