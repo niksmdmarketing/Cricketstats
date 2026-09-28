@@ -40,7 +40,7 @@ def load():
     dob = pd.to_numeric(m.get("dob"), errors="coerce")
     out = pd.DataFrame({
         "player_id": m.cricsheet_id,
-        "name": m.get("name"),
+        "name": m.get("name").fillna(m.get("full_name")) if "full_name" in m else m.get("name"),
         # R stores dates as days since 1970-01-01
         "dob": pd.to_datetime(dob, unit="D", origin="unix", errors="coerce") if dob.notna().any() else pd.NaT,
         "hand": m.get("batting_style").fillna("").str.contains("Left").map({True: "left", False: "right"}),

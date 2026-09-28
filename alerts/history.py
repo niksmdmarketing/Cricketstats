@@ -24,7 +24,7 @@ def _scope_sql():
              CASE WHEN team_type = 'international' THEN
                   CASE WHEN match_type IN ('T20','IT20') THEN 'T20I' ELSE match_type END
                   ELSE 'T20' END AS format,
-             COALESCE(event, competition) AS series, city, venue, winner, win_by_runs, win_by_wickets,
+             COALESCE(event, competition) AS series, event_stage AS stage, city, venue, winner, win_by_runs, win_by_wickets,
              team1, team2, team_type
       FROM m
       WHERE (team_type = 'international' AND match_type IN ('Test','ODI','T20','IT20')
@@ -67,23 +67,28 @@ def build(con):
         SELECT match_id, innings, pid, MIN(s) s FROM (
           SELECT match_id, innings, pid, s FROM appear
           UNION ALL SELECT ns.match_id, ns.innings, nsid.pid, ns.s FROM ns JOIN nsid USING (match_id, innings, nm)) GROUP BY ALL),
-      pos AS (SELECT match_id, innings, pid, ROW_NUMBER() OVER (PARTITION BY match_id, innings ORDER BY s) pos FROM first),
+      pos AS (SELECT match_id, innings, pid, s, ROW_NUMBER() OVER (PARTITION BY match_id, innings ORDER BY s) pos FROM first),
+      entry AS (SELECT pos.match_id, pos.innings, pos.pid,
+                       (dd.team_score - dd.runs_total)::INT entry_score,
+                       (dd.team_wickets - (dd.is_wicket)::INT)::INT entry_wkts
+                FROM pos JOIN dd ON dd.match_id = pos.match_id AND dd.innings = pos.innings AND dd.delivery_seq = pos.s),
       outs AS (SELECT match_id, innings, player_out, ANY_VALUE(wicket_kind) kind,
                       ANY_VALUE(CASE WHEN bowler_wicket THEN bowler_id END) bowler_id
                FROM dd WHERE is_wicket AND player_out IS NOT NULL GROUP BY ALL),
       b AS (SELECT match_id, innings, batting_team team, bowling_team opp, batter player, ANY_VALUE(batter_id) player_id,
                    SUM(runs_batter)::INT runs, SUM((wides=0)::INT)::INT balls, SUM(is_four::INT)::INT fours,
                    SUM(is_six::INT)::INT sixes FROM dd GROUP BY ALL)
-      SELECT b.match_id, mm.date, mm.gender, mm.format, mm.competition, mm.series, mm.city, mm.venue, mm.host,
-             b.team, b.opp, b.innings, pos.pos::INT pos, b.player_id, b.player, b.runs, b.balls,
+      SELECT b.match_id, mm.date, mm.gender, mm.format, mm.competition, mm.series, mm.stage, mm.city, mm.venue, mm.host,
+             b.team, b.opp, b.innings, pos.pos::INT pos, en.entry_score, en.entry_wkts, b.player_id, b.player, b.runs, b.balls,
              (o.player_out IS NOT NULL)::INT is_out, o.kind, o.bowler_id AS out_bowler, b.fours, b.sixes,
              CASE WHEN mm.winner IS NULL THEN NULL ELSE mm.winner = b.team END AS won, c.chasing
       FROM b JOIN mm USING (match_id)
       LEFT JOIN pos ON pos.match_id=b.match_id AND pos.innings=b.innings AND pos.pid=b.player_id
+      LEFT JOIN entry en ON en.match_id=b.match_id AND en.innings=b.innings AND en.pid=b.player_id
       LEFT JOIN outs o ON o.match_id=b.match_id AND o.innings=b.innings AND o.player_out=b.player
       LEFT JOIN chase c ON c.match_id=b.match_id AND c.innings=b.innings""").df()
     bowl = con.execute("""
-      SELECT d.match_id, mm.date, mm.gender, mm.format, mm.competition, mm.series, mm.city, mm.venue, mm.host,
+      SELECT d.match_id, mm.date, mm.gender, mm.format, mm.competition, mm.series, mm.stage, mm.city, mm.venue, mm.host,
              d.bowling_team team, d.batting_team opp, d.innings, d.bowler player, ANY_VALUE(d.bowler_id) player_id,
              SUM(d.bowler_wicket::INT)::INT wkts, SUM(runs_batter + wides + noballs)::INT runs,
              SUM(is_legal::INT)::INT balls, SUM((is_dot AND is_legal)::INT)::INT dots,
@@ -91,9 +96,9 @@ def build(con):
              SUM((bowler_wicket AND ((mm.format IN ('T20','T20I') AND over >= 16) OR (mm.format='ODI' AND over >= 41)))::INT)::INT death_wkts,
              CASE WHEN ANY_VALUE(mm.winner) IS NULL THEN NULL ELSE ANY_VALUE(mm.winner) = d.bowling_team END AS won
       FROM dd d JOIN mm USING (match_id) GROUP BY d.match_id, mm.date, mm.gender, mm.format, mm.competition, mm.series,
-             mm.city, mm.venue, mm.host, d.bowling_team, d.batting_team, d.innings, d.bowler""").df()
+             mm.stage, mm.city, mm.venue, mm.host, d.bowling_team, d.batting_team, d.innings, d.bowler""").df()
     team = con.execute("""
-      SELECT i.match_id, mm.date, mm.gender, mm.format, mm.competition, mm.series, mm.city, mm.venue, mm.host,
+      SELECT i.match_id, mm.date, mm.gender, mm.format, mm.competition, mm.series, mm.stage, mm.city, mm.venue, mm.host,
              i.team, i.opp, i.innings, i.score, i.wkts, i.balls, i.target,
              CASE WHEN mm.winner IS NULL THEN NULL ELSE mm.winner = i.team END AS won, mm.win_by_runs, mm.win_by_wickets
       FROM (SELECT match_id, innings, batting_team team, bowling_team opp, MAX(team_score)::INT score,

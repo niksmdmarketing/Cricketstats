@@ -95,10 +95,12 @@ def detail(ev):
                         rec["bat"].append((inn, r, b, o))
                         od = ((ls.get("batting") or {}).get("outDetails") or {}) if o else {}
                         ov = ((od.get("details") or {}).get("over") or {}).get("overs")
+                        fw = (od.get("details") or {}).get("innings") or {}
                         rec["batx"].append(dict(inn=inn, pos=_int(st.get("battingPosition")), runs=r, balls=b, out=o,
                                                 fours=_int(st.get("fours")), sixes=_int(st.get("sixes")),
                                                 kind=od.get("dismissalCard"), bowler=str((od.get("bowler") or {}).get("id") or "") or None,
-                                                over=float(ov) if ov not in (None, "") else None))
+                                                over=float(ov) if ov not in (None, "") else None,
+                                                fow=(_int(fw.get("wickets")), _int(fw.get("runs"))) if fw else None))
                     if "wickets" in st and "conceded" in st and float(st.get("balls") or 0) > 0:
                         w, c_ = int(float(st.get("wickets") or 0)), int(float(st.get("conceded") or 0))
                         rec["wkts"] += w
@@ -115,6 +117,7 @@ def detail(ev):
                     if d["inn"] == bx["inn"] or len(bw["bowlx"]) == 1:
                         ov = int(bx["over"]) + 1        # 0.3 -> 1st over
                         d.setdefault("wicket_overs", []).append(ov)
+                        d.setdefault("wicket_balls", []).append(bx["over"])
                         break
     innings, winner = [], None
     for comp in ((js.get("header") or {}).get("competitions") or [])[:1]:

@@ -84,6 +84,7 @@ def match_alerts(ev, fmt, gender, comp, teams, ci2cs, host, sent, seen, log, tag
         if not facts or key in sent or key in seen:
             return
         seen.add(key)
+        charts = {fix(t, gender): ctx.charts[t] for _, _, t in facts if t in ctx.charts}
         facts = [(s, fam, fix(t, gender)) for s, fam, t in facts]
         lead, sup = R.pick(facts, log, pid)
         if lead is None:
@@ -94,6 +95,9 @@ def match_alerts(ev, fmt, gender, comp, teams, ci2cs, host, sent, seen, log, tag
             return
         R.record(log, lead, pid, supports=sup)
         note = "\n".join(f"• {t}" for t in [lead[3]] + [s[3] for s in sup])
+        idea = next((charts[f[3]] for f in [lead] + sup if f[3] in charts), None)
+        if idea:
+            note += f"\n📊 <b>Chart idea:</b> {idea[0]}\n<i>Data: {idea[1]}</i>"
         if others:
             note += "\n<b>Other angles</b>\n" + "\n".join(f"◦ {t}" for t in others)
         out.append(dict(kind="nugget", key=key, competition=comp, headline=f"{subject} · {label}", match=ev["name"],
@@ -102,6 +106,25 @@ def match_alerts(ev, fmt, gender, comp, teams, ci2cs, host, sent, seen, log, tag
                         cricinfo_player=ci, family=lead[2]))
 
     players = d["players"]
+    remember_names({ci2cs[c]: p_["name"] for c, p_ in players.items() if c in ci2cs and p_.get("name")})
+    stage = _stage(ev)
+    tot_runs = sum(x["runs"] for p_ in players.values() for x in p_.get("batx", []))
+    tot_balls = sum(x["balls"] or 0 for p_ in players.values() for x in p_.get("batx", []))
+    totals = {(_plain(t), per): r for t, per, r, w, ov, tg in d.get("innings", [])}
+
+    def entry(team, inn, pos):
+        if not pos:
+            return None, None
+        if pos <= 2:
+            return 0, 0
+        for p_ in players.values():
+            if _plain(p_["team"]) != team:
+                continue
+            for x in p_.get("batx", []):
+                if x["inn"] == inn and x.get("fow") and x["fow"][0] == pos - 2:
+                    return x["fow"][1], x["fow"][0]
+        return None, None
+
     for ci, p in players.items():
         pid = ci2cs.get(ci)
         if not pid:
@@ -121,6 +144,12 @@ def match_alerts(ev, fmt, gender, comp, teams, ci2cs, host, sent, seen, log, tag
                           out_bowler=ci2cs.get(bx["bowler"]) if bx["bowler"] else None, chasing=chasing, star=sb)
             if bx["bowler"] and bx["bowler"] in players:
                 perf.extra["out_bowler_name"] = players[bx["bowler"]]["name"]
+            mates = [x["runs"] for q in players.values() if _plain(q["team"]) == team and q is not p
+                     for x in q.get("batx", []) if x["inn"] == bx["inn"]]
+            es, ew = entry(team, bx["inn"], bx["pos"])
+            perf.extra.update(team_total=totals.get((team, bx["inn"])), others_best=max(mates) if mates else 0,
+                              entry_score=es, entry_wkts=ew, stage=stage,
+                              others_runs=tot_runs - bx["runs"], others_balls=tot_balls - (bx["balls"] or 0))
             subj, facts = A.batting(ctx, perf)
             r = bx["runs"]
             lvl = 200 if r >= 200 else 150 if r >= 150 else 100 if r >= 100 else 50 if r >= 50 else f"low{bx['out']}"
@@ -134,6 +163,7 @@ def match_alerts(ev, fmt, gender, comp, teams, ci2cs, host, sent, seen, log, tag
             perf = A.Perf(**base(pid, name, team), inn=bw["inn"], wkts=bw["wkts"], conceded=bw["conceded"], bballs=bw["balls"],
                           pp_wkts=sum(o <= pp for o in overs) if f != "Test" else None,
                           death_wkts=sum(o >= death for o in overs) if f != "Test" else None, star=sw)
+            perf.extra.update(stage=stage, wicket_balls=[b for b in bw.get("wicket_balls", []) if b is not None])
             perf.extra["dismissed"] = [dict(pid=ci2cs.get(bci), name=players[bci]["name"])
                                        for bci, bp in players.items() for x in bp.get("batx", [])
                                        if x["bowler"] == ci and x["inn"] == bw["inn"] and ci2cs.get(bci)
@@ -154,14 +184,33 @@ def match_alerts(ev, fmt, gender, comp, teams, ci2cs, host, sent, seen, log, tag
             emit(f"nug:{ev['id']}:team", "", facts, f"{winner} beat {loser}", None, None)
     if post:
         store_recent(ev, d, f, gender, comp, teams, ci2cs, host, winner)
-    dkey = f"digest:{ev['id']}"
-    if post and quiet and dkey not in sent:
-        out.append(dict(kind="digest", key=dkey, competition=comp, headline=f"Other notes: {ev['name']}", match=ev["name"],
-                        date=ev["date"][:10], match_id=ev["id"], note="\n".join(f"• {t}" for _, t in quiet[:15]),
-                        caption=f"{ev['name']} notes\n\n{tag}", priority=10))
+        from . import scheduled
+        scheduled.mark_series(ev, teams, fmt, gender)
+    if quiet:   # weaker options go into the next morning pack instead of pinging now
+        from . import scheduled
+        scheduled.queue_digest([dict(key=k, match=ev["name"], text=t) for k, t in quiet])
         for k, _ in quiet:
             sent[k] = pd.Timestamp.now().isoformat()
     return out
+
+
+def remember_names(m):
+    import json
+    f = STATE / "espn_names.json"
+    try:
+        cur = json.loads(f.read_text())
+    except (FileNotFoundError, ValueError):
+        cur = {}
+    if any(cur.get(k) != v for k, v in m.items()):
+        cur.update(m)
+        f.write_text(json.dumps(cur, indent=0, sort_keys=True))
+
+
+def _stage(ev):
+    import re
+    text = f"{ev.get('description') or ''} {ev.get('name') or ''}"
+    m = re.search(r"(semi[- ]?final|quarter[- ]?final|final|qualifier\s*\d?|eliminator)", text, re.I)
+    return m.group(1).title().replace("-", " ") if m else None
 
 
 def store_recent(ev, d, f, gender, comp, teams, ci2cs, host, winner):

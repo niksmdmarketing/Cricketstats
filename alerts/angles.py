@@ -128,6 +128,7 @@ class Ctx:
         self.legends = legends
         self.names = names or {}
         self.today = pd.Timestamp(today or pd.Timestamp.now().normalize())
+        self.charts = {}   # fact text -> (chart idea, data)
 
     # scope: same format, gender and (for leagues) competition, excluding this match
     def scope(self, df, p):
@@ -141,6 +142,30 @@ class Ctx:
         if not (isinstance(n, str) and n):
             n = fallback or self.pname.get(pid, "")
         return surname(n)
+
+    def full(self, pid, fallback=""):
+        """Display name for standalone posts: ESPN's name if we've seen the player, else first name + surname."""
+        if not hasattr(self, "_espn"):
+            import json
+            from pathlib import Path
+            f = Path(__file__).resolve().parents[1] / "state" / "espn_names.json"
+            try:
+                self._espn = json.loads(f.read_text())
+            except (FileNotFoundError, ValueError):
+                self._espn = {}
+        if pid in self._espn:
+            return self._espn[pid]
+        short = fallback or self.pname.get(pid, "")
+        full = self.names.get(pid)
+        if self.meta is not None and pid in self.meta.index and not isinstance(full, str):
+            full = self.meta.at[pid, "name"]
+        if isinstance(full, str) and full.split() and short:
+            first = full.split()[0]
+            sur = surname(short)
+            if sur != short:          # 'SR Tendulkar' -> 'Sachin Tendulkar'
+                return f"{first} {sur}"
+            return short
+        return short or (full if isinstance(full, str) else "")
 
     def dob(self, pid):
         if self.meta is None or pid not in self.meta.index:
@@ -977,6 +1002,8 @@ def batting(ctx, p):
     facts += split_dismissal(ctx, p)
     if p.out and p.out_bowler and p.star:
         facts += duel_for_dismissal(ctx, p.out_bowler, p.pid, p.extra.get("out_bowler_name", ""), p.name, p.gender, p.date, is_league(p))
+    from . import analysis as AN
+    facts = AN.finish(ctx, p, facts + AN.extra_bat(ctx, p), "bat")
     if p.star:
         facts = [(s + 6, f, t) for s, f, t in facts]
     return subject, facts
@@ -1013,6 +1040,8 @@ def bowling(ctx, p):
             facts += duel_for_dismissal(ctx, p.pid, d["pid"], p.name, d["name"], p.gender, p.date, is_league(p))
     facts += quirks_bowl(ctx, p)
     facts += slump_bowl(ctx, p)
+    from . import analysis as AN
+    facts = AN.finish(ctx, p, facts + AN.extra_bowl(ctx, p), "bowl")
     if p.star:
         facts = [(s + 6, f, t) for s, f, t in facts]
     return subject, facts

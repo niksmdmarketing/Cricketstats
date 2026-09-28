@@ -16,7 +16,7 @@ ROOT = Path(__file__).resolve().parents[1]
 STATE = ROOT / "state"
 SENT = STATE / "sent.json"
 CAREERS = STATE / "careers.parquet"
-MAX_SINGLE = 15
+MAX_SINGLE = 40
 
 
 def load_sent():
@@ -30,7 +30,21 @@ def save_sent(sent):
     SENT.write_text(json.dumps(sent, indent=0, sort_keys=True))
 
 
+LATE = {"record", "rare", "milestone"}   # from Cricsheet, days after the match: digest, not a ping
+
+
 def deliver(alerts, sent):
+    late = [a for a in alerts if a.get("kind") in LATE and a["key"] not in sent]
+    if late:
+        from . import scheduled
+        scheduled.queue_digest([dict(key=a["key"], match=a.get("match", ""), text=a["headline"]) for a in late])
+        now_ = datetime.now(timezone.utc).isoformat()
+        for a in late:
+            sent[a["key"]] = now_
+    alerts = [a for a in alerts if a.get("kind") not in LATE]
+    for a in alerts:
+        if a.get("kind") == "watch":
+            a["silent"] = True
     fresh = [a for a in alerts if a["key"] not in sent]
     fresh.sort(key=lambda a: -a.get("priority", 0))
     now = datetime.now(timezone.utc).isoformat()
@@ -146,6 +160,41 @@ def live():
     save_sent(sent)
 
 
+def morning():
+    """One silent morning pack: previews, on this day, series wraps, Monday leaderboards, Thursday comparisons,
+    plus yesterday's weaker live options as a single list."""
+    from . import espn, live_angles, scheduled
+    ctx = live_angles.load_context()
+    if ctx is None:
+        print("no history yet")
+        return
+    try:
+        evs = espn.events()
+    except Exception as e:  # noqa: BLE001
+        print("ESPN events failed:", e)
+        evs = []
+    posts, digest = scheduled.morning_pack(ctx, evs)
+    sent = load_sent()
+    posts = [p for p in posts if p["key"] not in sent]
+    if posts or digest:
+        tg.send(f"☀️ <b>Morning pack</b>: {len(posts)} ready-to-post idea{'s' * (len(posts) != 1)}"
+                + (f" + {len(digest)} more options from yesterday" if digest else ""), silent=True)
+    now_ = datetime.now(timezone.utc).isoformat()
+    for p in posts:
+        try:
+            tg.send_alert(p)
+            sent[p["key"]] = now_
+        except Exception as e:  # noqa: BLE001
+            print("send failed:", e)
+    if digest:
+        lines = ["<b>🗒 More options from yesterday</b> (weaker, but usable)"]
+        for d in digest[:40]:
+            lines.append(f"• <b>{tg.esc(d.get('match', ''))}</b>: {tg.esc(d['text'])}")
+        tg.send("\n".join(lines), silent=True)
+    save_sent(sent)
+    print(f"morning pack: {len(posts)} posts, {len(digest)} digest items")
+
+
 def build():
     """Refresh data, history tables and player metadata without sending anything."""
     from . import build_data, history, stats
@@ -194,7 +243,7 @@ if __name__ == "__main__":
     import os
     import traceback
     try:
-        {"daily": daily, "live": live, "test": test, "status": status, "preview": preview, "build": build}[sys.argv[1] if len(sys.argv) > 1 else "daily"]()
+        {"daily": daily, "live": live, "test": test, "status": status, "preview": preview, "build": build, "morning": morning}[sys.argv[1] if len(sys.argv) > 1 else "daily"]()
     except Exception:  # print the error with the bot token removed (logs are public)
         tok = os.environ.get("TELEGRAM_BOT_TOKEN") or "~no-token~"
         print(traceback.format_exc().replace(tok, "***"))
