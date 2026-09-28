@@ -196,13 +196,17 @@ def morning():
 
 
 def match():
-    """Run the stat engine on specific finished matches: python -m alerts.run match LEAGUE:EVENT ... [--send]"""
+    """Run the stat engine on specific finished matches: python -m alerts.run match LEAGUE:EVENT ... [--send]
+    --wide: don't hold back sub-threshold performances for the digest - give every performance that has any
+    qualifying facts its own full alert (still deduped against what's already been sent)."""
     from . import espn, live_angles, rotation
     from .watch import ci_map, classify, _plain
     from . import nuggets as N
+    from . import angles as A
     import alerts.config as C
     args = [a for a in sys.argv[2:] if ":" in a]
     send = "--send" in sys.argv
+    wide = "--wide" in sys.argv
     ctx = live_angles.load_context()
     ci2cs = ci_map()
     log = rotation.load()
@@ -210,6 +214,8 @@ def match():
     if "--force" in sys.argv:     # re-evaluate matches the old engine already covered
         ids = {a.split(":")[1] for a in args}
         sent = {k: v for k, v in sent.items() if not (k.startswith("nug:") and k.split(":")[1] in ids)}
+    if wide:
+        A.LEAD_MIN = -10_000   # nothing gets diverted to the quiet/digest queue this run
     out = []
     for a in args:
         lg, eid = a.split(":")
