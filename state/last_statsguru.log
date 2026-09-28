@@ -1,0 +1,12 @@
+batting ('Test', 'male') 601 rows
+batting ('ODI', 'male') 484 rows
+batting ('T20I', 'male') 601 rows
+batting ('Test', 'female') 111 rows
+batting ('ODI', 'female') 236 rows
+batting ('T20I', 'female') 287 rows
+bowling ('Test', 'male') 432 rows
+bowling ('ODI', 'male') 478 rows
+bowling ('T20I', 'male') 613 rows
+bowling ('Test', 'female') 88 rows
+bowling ('ODI', 'female') 231 rows
+bowling ('T20I', 'female') 394 rows
