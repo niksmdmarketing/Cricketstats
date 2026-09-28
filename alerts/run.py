@@ -347,6 +347,62 @@ def checktigzig():
     print("wrote state/last_tigzig.log")
 
 
+def datatest():
+    """Query TigZig and send a compact historical-data coverage check to Telegram."""
+    import requests
+
+    endpoint = "https://db-mcp.tigzig.com/v1/query/postgres"
+
+    def q(sql):
+        r = requests.post(endpoint, json={"sql": sql, "format": "json"}, timeout=30)
+        r.raise_for_status()
+        js = r.json()
+        return [dict(zip(js["columns"], row)) for row in js["rows"]]
+
+    totals = q("""
+        SELECT
+          (SELECT COUNT(*) FROM match_info) AS matches,
+          (SELECT COUNT(*) FROM ball_by_ball) AS deliveries
+    """)[0]
+    coverage = q("""
+        SELECT 'Men ODI' AS scope, MIN(start_date) AS first_match, MAX(start_date) AS latest_match
+        FROM match_info_odi_men
+        UNION ALL
+        SELECT 'Women ODI', MIN(start_date), MAX(start_date) FROM match_info_odi_women
+        UNION ALL
+        SELECT 'Men T20I', MIN(start_date), MAX(start_date) FROM match_info_t20_men
+        UNION ALL
+        SELECT 'Women T20I', MIN(start_date), MAX(start_date) FROM match_info_t20_women
+        UNION ALL
+        SELECT 'Men Test', MIN(start_date), MAX(start_date) FROM match_info_test_men
+        UNION ALL
+        SELECT 'Women Test', MIN(start_date), MAX(start_date) FROM match_info_test_women
+        UNION ALL
+        SELECT 'IPL', MIN(start_date), MAX(start_date) FROM match_info_ipl
+    """)
+
+    lines = [
+        "<b>📊 DATA CHECK · TigZig / Cricsheet</b>",
+        f"{int(totals['matches']):,} matches · {int(totals['deliveries']):,} deliveries",
+        "",
+        "<b>Coverage currently available</b>",
+    ]
+    scope_order = {name: i for i, name in enumerate(
+        ("Men Test", "Women Test", "Men ODI", "Women ODI", "Men T20I", "Women T20I", "IPL"))}
+    coverage.sort(key=lambda row: scope_order.get(row["scope"], 99))
+    for row in coverage:
+        first = str(row["first_match"])[:10]
+        latest = str(row["latest_match"])[:10]
+        lines.append(f"• {tg.esc(row['scope'])}: {first} → {latest}")
+    lines += [
+        "",
+        "<i>Historical database only. A finished live match may appear later after Cricsheet publishes it.</i>",
+        "Source: Cricsheet via TigZig (ODC-BY)",
+    ]
+    tg.send("\n".join(lines))
+    print("TigZig data check sent to Telegram")
+
+
 def build():
     """Refresh data, history tables and player metadata without sending anything."""
     from . import build_data, history, stats
@@ -396,7 +452,8 @@ if __name__ == "__main__":
     import traceback
     try:
         {"daily": daily, "live": live, "test": test, "status": status, "preview": preview, "build": build,
-         "morning": morning, "match": match, "checktigzig": checktigzig}[sys.argv[1] if len(sys.argv) > 1 else "daily"]()
+         "morning": morning, "match": match, "checktigzig": checktigzig,
+         "datatest": datatest}[sys.argv[1] if len(sys.argv) > 1 else "daily"]()
     except Exception:  # print the error with the bot token removed (logs are public)
         tok = os.environ.get("TELEGRAM_BOT_TOKEN") or "~no-token~"
         print(traceback.format_exc().replace(tok, "***"))
