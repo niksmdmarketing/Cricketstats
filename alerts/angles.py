@@ -300,7 +300,12 @@ def drought(ctx, p, hit, verb, noun, mates=()):
             last = rows.sort_values("date").iloc[-1]
             gap = (p.date - last.date).days
             if gap >= MIN_GAP_DAYS and _games(ctx, p, lens, last.date) >= need:
-                named = f" since {ctx.nm(last.player_id, last.player)} in {when(last.date)}" if lens != "team" else f" since {when(last.date)}"
+                if lens == "team":
+                    named = f" since {when(last.date)}"
+                elif last.player_id == p.pid:
+                    named = f" since his own in {when(last.date)}"
+                else:
+                    named = f" since {ctx.nm(last.player_id, last.player)} in {when(last.date)}"
                 out.append(F("drought", lead + named + also, strength=min(12, gap // 365 * 2) + (6 if lens in ("country", "opp") else 0)))
                 break
         elif lens in ("country", "opp", "city") and _games(ctx, p, lens) >= need + 2:
