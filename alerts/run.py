@@ -444,7 +444,14 @@ def status():
 def test():
     tg.send("✅ <b>Cricket alerts connected.</b>\nYou'll get record, milestone and watch-list alerts here.",
             [("📝 Example: Post on X", tg.x_intent("Testing my cricket stats alerts 🏏"))])
-    print("test message sent to chat", tg.chat_id())
+    print("test message sent to chat(s)", tg.chat_ids())
+
+
+def listchats():
+    """Print every chat (private/group/channel) that has recently messaged the bot, with its chat_id -
+    use this to find a group's id after adding the bot and posting a message there."""
+    for line in tg.list_chats():
+        print(line)
 
 
 if __name__ == "__main__":
@@ -453,7 +460,7 @@ if __name__ == "__main__":
     try:
         {"daily": daily, "live": live, "test": test, "status": status, "preview": preview, "build": build,
          "morning": morning, "match": match, "checktigzig": checktigzig,
-         "datatest": datatest}[sys.argv[1] if len(sys.argv) > 1 else "daily"]()
+         "datatest": datatest, "listchats": listchats}[sys.argv[1] if len(sys.argv) > 1 else "daily"]()
     except Exception:  # print the error with the bot token removed (logs are public)
         tok = os.environ.get("TELEGRAM_BOT_TOKEN") or "~no-token~"
         print(traceback.format_exc().replace(tok, "***"))

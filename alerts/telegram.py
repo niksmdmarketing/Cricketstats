@@ -28,20 +28,41 @@ def _api(method, **payload):
     return js["result"]
 
 
-def chat_id():
-    cid = os.environ.get("TELEGRAM_CHAT_ID") or ""
+def chat_ids():
+    """Every chat to broadcast to: TELEGRAM_CHAT_ID (comma-separated for more than one - e.g. your
+    private chat plus a group), falling back to state/chat_id.txt, falling back to auto-detecting
+    the last chat that messaged the bot."""
+    raw = os.environ.get("TELEGRAM_CHAT_ID") or ""
     f = STATE / "chat_id.txt"
-    if not cid and f.exists():
-        cid = f.read_text().strip()
-    if not cid:
+    if not raw and f.exists():
+        raw = f.read_text().strip()
+    ids = [c.strip() for c in raw.split(",") if c.strip()]
+    if not ids:
         ups = _api("getUpdates")
         chats = [u["message"]["chat"]["id"] for u in ups if "message" in u and u["message"]["chat"]["type"] == "private"]
         if not chats:
             raise RuntimeError("No chat found. Open your bot in Telegram and press Start, then rerun.")
-        cid = str(chats[-1])
+        ids = [str(chats[-1])]
         STATE.mkdir(exist_ok=True)
-        f.write_text(cid)
-    return cid
+        f.write_text(ids[0])
+    return ids
+
+
+def chat_id():
+    return chat_ids()[0]
+
+
+def list_chats():
+    """Every chat (private, group, supergroup, channel) that has messaged the bot recently -
+    use this to find a group's chat_id after adding the bot and posting a message there."""
+    ups = _api("getUpdates")
+    seen = {}
+    for u in ups:
+        m = u.get("message") or u.get("my_chat_member") or {}
+        chat = m.get("chat") or (u.get("my_chat_member") or {}).get("chat")
+        if chat:
+            seen[chat["id"]] = f"{chat['id']}  [{chat.get('type')}]  {chat.get('title') or chat.get('username') or chat.get('first_name') or ''}"
+    return list(seen.values())
 
 
 def x_intent(text):
@@ -49,12 +70,14 @@ def x_intent(text):
 
 
 def send(text, buttons=None, silent=False):
-    payload = dict(chat_id=chat_id(), text=text[:4000], parse_mode="HTML",
-                   disable_web_page_preview=True, disable_notification=silent)
-    if buttons:
-        payload["reply_markup"] = {"inline_keyboard": [[{"text": t, "url": u}] for t, u in buttons]}
-    res = _api("sendMessage", **payload)
-    time.sleep(1.1)  # stay well inside Telegram rate limits
+    res = None
+    for cid in chat_ids():
+        payload = dict(chat_id=cid, text=text[:4000], parse_mode="HTML",
+                       disable_web_page_preview=True, disable_notification=silent)
+        if buttons:
+            payload["reply_markup"] = {"inline_keyboard": [[{"text": t, "url": u}] for t, u in buttons]}
+        res = _api("sendMessage", **payload)
+        time.sleep(1.1)  # stay well inside Telegram rate limits
     return res
 
 
