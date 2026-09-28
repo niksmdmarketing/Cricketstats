@@ -110,6 +110,8 @@ def carry(ctx, p):
     team_word = "the side" if is_league(p) else p.team
     out = [F("carry", f"{p.runs} of {poss(team_word)} {tot} ({share:.0%}) — no one else made more than {best_other}",
              strength=int((share - 0.4) * 60))]
+    if not p.extra.get("innings_complete"):
+        return out            # a chase or unfinished innings isn't comparable with completed ones
     # how rare is a share like that for this team?
     h = ctx.scope(ctx.hb, p)
     ti = _team_innings(ctx, p)

@@ -148,7 +148,8 @@ class Ctx:
 
     # scope: same format, gender and (for leagues) competition, excluding this match
     def scope(self, df, p):
-        d = df[(df.format == p.fmt) & (df.gender == p.gender) & (df.match_id.astype(str) != str(p.match_id))]
+        mid = str(p.match_id).replace("espn", "")
+        d = df[(df.format == p.fmt) & (df.gender == p.gender) & ~df.match_id.astype(str).isin([mid, f"espn{mid}"])]
         if p.fmt == "T20":
             d = d[d.competition == p.comp]
         return d

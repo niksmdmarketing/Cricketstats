@@ -71,7 +71,7 @@ class Legends:
         if h is not None and len(h):
             x = h[(h.format == fmt) & (h.gender == gender) & (pd.to_datetime(h.date) > self.snapshot)]
             if exclude_match is not None:
-                x = x[x.match_id.astype(str) != str(exclude_match)]
+                x = x[~x.match_id.astype(str).isin([str(exclude_match), f"espn{exclude_match}"])]
             if len(x):
                 inc = {"runs": x.groupby("player_id").runs.sum() if src == "bat" else None}
                 if src == "bat":

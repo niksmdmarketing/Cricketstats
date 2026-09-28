@@ -111,6 +111,14 @@ def match_alerts(ev, fmt, gender, comp, teams, ci2cs, host, sent, seen, log, tag
     tot_runs = sum(x["runs"] for p_ in players.values() for x in p_.get("batx", []))
     tot_balls = sum(x["balls"] or 0 for p_ in players.values() for x in p_.get("batx", []))
     totals = {(_plain(t), per): r for t, per, r, w, ov, tg in d.get("innings", [])}
+    lim = {"ODI": 50, "T20I": 20, "T20": 20}.get(f)
+
+    def _ov(x):
+        try:
+            return float(x)
+        except (TypeError, ValueError):
+            return 0.0
+    complete = {(_plain(t), per): (w >= 10 or (lim is not None and _ov(ov) >= lim)) for t, per, r, w, ov, tg in d.get("innings", [])}
 
     def entry(team, inn, pos):
         if not pos:
@@ -160,7 +168,7 @@ def match_alerts(ev, fmt, gender, comp, teams, ci2cs, host, sent, seen, log, tag
                      for x in q.get("batx", []) if x["inn"] == bx["inn"]]
             es, ew = entry(team, bx["inn"], bx["pos"])
             perf.extra["mates_bat"] = mates_of(team, ci, "bat")
-            perf.extra.update(team_total=totals.get((team, bx["inn"])), others_best=max(mates) if mates else 0,
+            perf.extra.update(team_total=totals.get((team, bx["inn"])), innings_complete=complete.get((team, bx["inn"])), others_best=max(mates) if mates else 0,
                               entry_score=es, entry_wkts=ew, stage=stage,
                               others_runs=tot_runs - bx["runs"], others_balls=tot_balls - (bx["balls"] or 0))
             subj, facts = A.batting(ctx, perf)

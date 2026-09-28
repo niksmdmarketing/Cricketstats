@@ -98,7 +98,7 @@ def host_for(city, home, hist_team):
 
 
 def _scope(h, fmt, gender, match_id):
-    h = h[(h.format == fmt) & (h.gender == gender) & (h.match_id.astype(str) != str(match_id))]
+    h = h[(h.format == fmt) & (h.gender == gender) & ~h.match_id.astype(str).isin([str(match_id), f"espn{match_id}"])]
     return h[pd.to_datetime(h.date) >= pd.Timestamp(f"{COVER[gender]}-01-01")]
 
 
