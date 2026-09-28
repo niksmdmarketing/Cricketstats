@@ -228,7 +228,7 @@ def drought(ctx, p, hit, verb, noun):
             lenses.append(("home", hit[(hit.team == p.team) & (hit.host == p.team)], f"the first {dem} to {verb} at home"))
     elif isinstance(p.city, str) and p.city:
         lenses.append(("city", hit[(hit.team == p.team) & (hit.city == p.city)], f"the first {dem} to {verb} in {p.city}"))
-    lenses.append(("team", hit[hit.team == p.team], f"{p.team}'s first {noun}"))
+    lenses.append(("team", hit[hit.team == p.team], f"{poss(p.team)} first {noun}"))
     for lens, rows, lead in lenses:
         if len(rows):
             last = rows.sort_values("date").iloc[-1]
@@ -253,13 +253,13 @@ def drought(ctx, p, hit, verb, noun):
 # ======================================================================= company (rare feats)
 BAT_FEATS = [
     # key, test(p, row-like), phrase for "the Nth player to <phrase>", formats
-    ("ton_low", lambda r: r.runs >= 100 and (r.pos or 0) >= 6, "score {art} hundred batting at No.6 or lower", None),
+    ("ton_low", lambda r: r.runs >= 100 and (r.pos or 0) >= 6, "score {art2} hundred batting at No.6 or lower", None),
     ("ton_fast", lambda r: r.runs >= 100 and r.balls and r.balls <= {"T20I": 45, "T20": 45, "ODI": 60, "Test": 90}[r.format],
-     "score {art} hundred in {lim} balls or fewer", None),
+     "score {art2} hundred in {lim} balls or fewer", None),
     ("fifty_fast", lambda r: r.runs >= 50 and r.balls and r.balls <= {"T20I": 18, "T20": 18, "ODI": 24, "Test": 35}[r.format],
-     "score {art} fifty in {lim50} balls or fewer", None),
+     "score {art2} fifty in {lim50} balls or fewer", None),
     ("sixes", lambda r: (r.sixes or 0) >= {"T20I": 10, "T20": 10, "ODI": 10, "Test": 7}[r.format],
-     "hit {s6}+ sixes in {art} innings", None),
+     "hit {s6}+ sixes in {art2} innings", None),
     ("ton_chase", lambda r: r.runs >= 100 and bool(r.chasing == True) and bool(r.won == True) and not r.is_out,  # noqa: E712
      "score an unbeaten hundred in a successful {fmtname} chase", None),
     ("big150", lambda r: r.runs >= 150 and r.format in ("ODI", "T20I", "T20"), "score 150+ in {art}", None),
@@ -312,7 +312,7 @@ def company(ctx, p, kind):
             df[df.runs >= 50] if key == "fifty_fast" else \
             df[df.sixes >= 7] if key == "sixes" else df[df.wkts >= 3] if kind == "bowl" else df
         prior = pre[_feat_mask(pre, test)] if len(pre) else pre
-        ph = phrase.format(art=art(p),
+        ph = phrase.format(art=art(p), art2=art2(p),
                            lim={"T20I": 45, "T20": 45, "ODI": 60, "Test": 90}[p.fmt],
                            lim50={"T20I": 18, "T20": 18, "ODI": 24, "Test": 35}[p.fmt],
                            s6={"T20I": 10, "T20": 10, "ODI": 10, "Test": 7}[p.fmt], fmtname=fmt_name(p),
@@ -529,6 +529,10 @@ def context_bat(ctx, p):
         if seqn >= 2 and tot >= {"ODI": 200, "Test": 300, "T20I": 120, "T20": 120}[p.fmt]:
             out.append(F("context", f"{tot} {P} runs in {p.city} without being dismissed ({seqn + 1} innings)", strength=10))
     return out
+
+
+def poss(name):
+    return f"{name}'" if name.endswith("s") else f"{name}'s"
 
 
 def art_of(w):
@@ -812,7 +816,7 @@ def duel_for_dismissal(ctx, bowler_pid, batter_pid, bowler_name, batter_name, ge
     if ctx.duel is None or not bowler_pid or not batter_pid:
         return []
     fmts = ["T20I", "T20"] if league else ["Test", "ODI", "T20I"]
-    where = "in T20 cricket (internationals and the big leagues)" if league else "in internationals"
+    where = "in T20 cricket" if league else "in internationals"
     d = ctx.duel[(ctx.duel.batter_id == batter_pid) & (ctx.duel.gender == gender) & (ctx.duel.format.isin(fmts))]
     if not len(d):
         return []
