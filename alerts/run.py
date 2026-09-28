@@ -207,6 +207,9 @@ def match():
     ci2cs = ci_map()
     log = rotation.load()
     sent = load_sent() if send else {}
+    if "--force" in sys.argv:     # re-evaluate matches the old engine already covered
+        ids = {a.split(":")[1] for a in args}
+        sent = {k: v for k, v in sent.items() if not (k.startswith("nug:") and k.split(":")[1] in ids)}
     out = []
     for a in args:
         lg, eid = a.split(":")
