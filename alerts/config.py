@@ -7,8 +7,16 @@ FULL_MEMBERS = {
     "New Zealand", "Pakistan", "South Africa", "Sri Lanka", "West Indies", "Zimbabwe",
 }
 
-# Only follow international matches between two full members (Tests, ODIs, T20Is, men and women)
-INTERNATIONALS_ONLY = True
+# Internationals: only matches between two full members (Tests, ODIs, T20Is, men and women).
+INTERNATIONALS_ONLY = False    # False = also follow the leagues in NUGGET_LEAGUES
+BOTH_FULL_MEMBERS = True
+
+# Franchise leagues the bot covers (stat angles, records, milestones)
+NUGGET_LEAGUES = {
+    "Indian Premier League", "Women's Premier League", "Big Bash League", "Women's Big Bash League",
+    "Pakistan Super League", "SA20", "Caribbean Premier League", "International League T20",
+    "Major League Cricket", "The Hundred Men's Competition", "The Hundred Women's Competition",
+}
 
 # Competitions (labels from label_competition) whose records are worth a post.
 MAJOR_LEAGUES = {

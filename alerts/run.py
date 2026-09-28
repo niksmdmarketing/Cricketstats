@@ -60,9 +60,16 @@ def refresh_names():
         raw = requests.get(url, timeout=60).content
         tmp = ROOT / "data" / "player_meta.rda"
         tmp.write_bytes(raw)
-        df = rdata.read_rda(str(tmp))["player_meta"][["cricsheet_id", "name"]].dropna()
+        full = rdata.read_rda(str(tmp))["player_meta"]
+        df = full[["cricsheet_id", "name"]].dropna()
         STATE.mkdir(exist_ok=True)
         df.to_csv(f, index=False)
+        cols = [c for c in ("cricsheet_id", "cricinfo_id", "name", "full_name", "country", "dob", "batting_style",
+                            "bowling_style", "playing_role") if c in full.columns]
+        mf = full[cols].dropna(subset=["cricsheet_id"]).copy()
+        if "dob" in mf and not pd.api.types.is_numeric_dtype(mf["dob"]):
+            mf["dob"] = (pd.to_datetime(mf["dob"], errors="coerce") - pd.Timestamp("1970-01-01")).dt.days
+        mf.to_csv(STATE / "meta.csv", index=False)
     except Exception as e:  # noqa: BLE001
         print("name refresh failed:", e)
     if not f.exists():
@@ -115,10 +122,9 @@ def daily():
             full = dn.get(a["player_id"])
             if full and a.get("player"):
                 a["caption"] = a["caption"].replace(a["player"], full)
-    hb, hw, ht = stats.history_tables(con)
-    hb.to_parquet(STATE / "hist_bat.parquet", index=False)
-    hw.to_parquet(STATE / "hist_bowl.parquet", index=False)
-    ht.to_parquet(STATE / "hist_team.parquet", index=False)
+    from . import history
+    (STATE / "hist").mkdir(exist_ok=True)
+    history.save(history.build(con), STATE / "hist")     # kept in the Actions cache, not in git
     keep = after[pd.to_datetime(after.last_match) >= pd.Timestamp.now() - pd.Timedelta(days=3 * 365)]
     STATE.mkdir(exist_ok=True)
     keep.to_parquet(CAREERS, index=False)
@@ -140,6 +146,35 @@ def live():
     save_sent(sent)
 
 
+def build():
+    """Refresh data, history tables and player metadata without sending anything."""
+    from . import build_data, history, stats
+    build_data.update()
+    con = stats.connect()
+    import shutil
+    STATE.mkdir(exist_ok=True)
+    shutil.copy(ROOT / "data" / "people.csv", STATE / "people.csv")
+    refresh_names()
+    (STATE / "hist").mkdir(exist_ok=True)
+    history.save(history.build(con), STATE / "hist")
+    after = stats.career_table(con)
+    after[pd.to_datetime(after.last_match) >= pd.Timestamp.now() - pd.Timedelta(days=3 * 365)].to_parquet(CAREERS, index=False)
+    print("history built")
+
+
+def preview():
+    """Run the live pass without sending anything; write what would be posted to state/last_preview.log."""
+    from . import watch
+    import alerts.telegram as T
+    sent = load_sent()
+    alerts = watch.run(pd.read_parquet(CAREERS), dict(sent))
+    lines = []
+    for a in sorted(alerts, key=lambda a: -a.get("priority", 0)):
+        lines.append(f"[{a.get('priority')}] {a.get('family', a.get('kind'))} | {a.get('headline')}\n{a.get('caption')}\n{a.get('note', '')}\n")
+    (STATE / "last_preview.log").write_text("\n".join(lines) or "nothing to post")
+    print(f"{len(alerts)} alerts previewed")
+
+
 def status():
     """Send a progress report for the matches listed in state/focus_matches (ESPN event ids)."""
     from . import watch
@@ -159,7 +194,7 @@ if __name__ == "__main__":
     import os
     import traceback
     try:
-        {"daily": daily, "live": live, "test": test, "status": status}[sys.argv[1] if len(sys.argv) > 1 else "daily"]()
+        {"daily": daily, "live": live, "test": test, "status": status, "preview": preview, "build": build}[sys.argv[1] if len(sys.argv) > 1 else "daily"]()
     except Exception:  # print the error with the bot token removed (logs are public)
         tok = os.environ.get("TELEGRAM_BOT_TOKEN") or "~no-token~"
         print(traceback.format_exc().replace(tok, "***"))

@@ -1,11 +1,9 @@
-name: Live milestones (ESPN feed)
+name: Preview (no sending)
 on:
-  schedule:
-    - cron: "17 * * * *"    # every hour at :17
   workflow_dispatch:
   push:
     branches: [main]
-    paths: ['triggers/live']
+    paths: ['triggers/preview']
 permissions:
   contents: write
 concurrency: { group: alerts, cancel-in-progress: false }
@@ -32,12 +30,12 @@ jobs:
         run: |
           set -o pipefail
           mkdir -p state
-          python -m alerts.run live 2>&1 | tail -c 20000 | tee state/last_live.log
+          python -m alerts.run preview 2>&1 | tail -c 20000 | tee state/last_preview_run.log
       - name: Save state
         if: always()
         run: |
           git config user.name "cricket-alerts-bot"
           git config user.email "actions@users.noreply.github.com"
-          git add state
-          git diff --cached --quiet || git commit -m "Update alert state"
+          git add state/last_preview.log state/last_preview_run.log
+          git diff --cached --quiet || git commit -m "Preview"
           git pull --rebase -q && git push -q || true

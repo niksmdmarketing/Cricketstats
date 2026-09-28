@@ -45,3 +45,36 @@ official figure before posting. Records are worded as "in <competition> (since <
 - Cricsheet (cricsheet.org), Open Data Commons Attribution License.
 - ESPN's public cricket feed (behind Cricinfo scorecards): light, low-volume use only.
 - Player names: cricketdata R package.
+
+## Stat angles (how posts are framed)
+`alerts/angles.py` looks at every big (or bad) performance from 14 angle families, modelled on what the
+biggest cricket stats accounts post:
+
+| Family | Example |
+|---|---|
+| form | "his last 5 Test innings: 68, 47, 23, 58*, 88 — 284 runs at 71.0"; series totals; streaks |
+| legend | "moves past Kallis into 3rd on the all-time list", "only Tendulkar has more" (weekly Statsguru snapshot) |
+| company | "joins A (2012) and B (2019) as the only players to...", "the only other time was..." |
+| drought | "the first West Indian to score an ODI hundred in India since Hope in December 2019" |
+| context | city, opponent, batting position, chases, best figures vs an opponent |
+| leaderboard | "now leads the 2026 T20I wickets chart", "3 of the top 4 are Pakistanis" |
+| shift | "since Aug 2025 he strikes at 183, up from 148 before" |
+| comeback | "his first Test hundred in 2 years, 166 days" |
+| quirk | "the 5th time he's been dismissed for 71 in Tests", birthdays, 100th match |
+| lone_hand | highest score in a defeat, "20 wickets and lost every match" |
+| split | pace vs spin, bowling types, powerplay/death wickets |
+| duel | "Siraj has now dismissed Head 9 times in internationals" |
+| age | "at 35, the oldest England player to score a T20I hundred" |
+| slump | big players' droughts, ducks, expensive days |
+
+`alerts/rotation.py` picks one hook plus up to two support lines from different families, and penalises a
+family that led any of the last 3 posts, was used more than twice in 24 hours, or was used for the same
+player in the last 3 weeks. Exact lines are never repeated. Every alert also lists the other angles found, so
+you can swap in a different one before posting.
+
+Coverage: men's and women's internationals between full members, plus the leagues in `NUGGET_LEAGUES`
+(IPL, WPL, BBL, WBBL, PSL, SA20, CPL, ILT20, MLC, The Hundred). "Ever" is only claimed where our ball-by-ball
+data covers the whole history (men's T20Is and the leagues); otherwise lines say "in records since 2006" (2011 for women).
+
+Jobs: `build.yml` (refresh data only), `preview.yml` (live pass without sending; see `state/last_preview.log`),
+`statsguru.yml` (weekly all-time snapshot).

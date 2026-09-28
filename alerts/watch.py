@@ -42,7 +42,7 @@ def classify(ev):
         f, gender = INTL[ev["intl_class"]]
         sex = "Men's" if gender == "male" else "Women's"
         both = set(plain) <= C.FULL_MEMBERS
-        if not both if C.INTERNATIONALS_ONLY else not (set(plain) & C.FULL_MEMBERS):
+        if not both if C.BOTH_FULL_MEMBERS else not (set(plain) & C.FULL_MEMBERS):
             return None, None, [], []
         scopes.append(f"{sex} {f}")
         fmt = "T20" if f == "T20I" else f
@@ -60,12 +60,11 @@ def classify(ev):
                 if key in text:
                     comp = c
                     break
-        if not comp:
+        if not comp or comp not in C.NUGGET_LEAGUES:
             return None, None, [], []
         scopes.append(comp)
         fmt = "T20"
-    if fmt == "T20" and not C.INTERNATIONALS_ONLY:
-        scopes.append(f"T20 (all, {'men' if gender == 'male' else 'women'})")
+
     return fmt, gender, scopes, plain
 
 
@@ -119,8 +118,11 @@ def run(careers, sent, now=None):
         evs = [e for e in evs if e["id"] in keep]
     ci2cs = ci_map()
     dn = display_names()
-    from .nuggets import load_history
-    hist = load_history()
+    from . import live_angles as LA
+    from . import rotation as R
+    ctx = LA.load_context()
+    hist = ctx is not None
+    log = R.load()
     cs2ci = {v: k for k, v in ci2cs.items()}
     careers = careers.copy()
     careers["last_match"] = pd.to_datetime(careers["last_match"])
@@ -146,7 +148,9 @@ def run(careers, sent, now=None):
             fN = {"T20": "T20I"}.get(fmt, fmt)
             for r in careers[careers.scope.isin(scopes) & careers.player_id.isin(ids)].itertuples():
                 kind = _kind(r.scope)
-                if hist is not None and not N.is_star(r.player_id, fN, gender, hist[0], hist[1]):
+                f_ = "T20" if r.scope in C.NUGGET_LEAGUES else fN
+                if hist and not (LA.star(ctx, r.player_id, f_, gender, r.scope, "bat")
+                                 or LA.star(ctx, r.player_id, f_, gender, r.scope, "bowl")):
                     continue
                 for stat, val in (("runs", int(r.runs)), ("wickets", int(r.wkts))):
                     mark, low = _next_mark(val, stat, kind, fmt)
@@ -154,7 +158,7 @@ def run(careers, sent, now=None):
                     thr = (C.WATCH_RUNS if stat == "runs" else C.WATCH_WKTS)[fmt]
                     if mark < low or need > thr or (stat == "wickets" and val == 0):
                         continue
-                    if C.INTERNATIONALS_ONLY and mark < N.BIG_MILESTONE[stat]:
+                    if kind == "international" and mark < N.BIG_MILESTONE[stat]:
                         continue
                     items.append((need / thr, r, stat, val, mark, need, kind))
             items.sort(key=lambda x: x[0])
@@ -188,13 +192,17 @@ def run(careers, sent, now=None):
         except Exception as e:  # noqa: BLE001
             print("scorecard failed", ev["id"], e)
             continue
+        from . import nuggets as N
         for ci, s in sc.items():
             pid = ci2cs.get(ci)
             if not pid:
                 continue
-            if hist is not None:
-                from . import nuggets as N
-                if not N.is_star(pid, {"T20": "T20I"}.get(fmt, fmt), gender, hist[0], hist[1]):
+            # internationals: the angle engine's all-time comparisons cover career milestones
+            if scopes and scopes[0] not in C.NUGGET_LEAGUES and ctx is not None and ctx.legends.ok:
+                continue
+            if hist:
+                f_ = "T20" if scopes[0] in C.NUGGET_LEAGUES else {"T20": "T20I"}.get(fmt, fmt)
+                if not (LA.star(ctx, pid, f_, gender, scopes[0], "bat") or LA.star(ctx, pid, f_, gender, scopes[0], "bowl")):
                     continue
             rows = careers[(careers.player_id == pid) & careers.scope.isin(scopes)]
             for r in rows.itertuples():
@@ -205,7 +213,7 @@ def run(careers, sent, now=None):
                     mark, low = _next_mark(base, stat, kind, fmt)
                     if got <= 0 or base + got < mark or mark < low:
                         continue
-                    if C.INTERNATIONALS_ONLY and mark < N.BIG_MILESTONE[stat]:
+                    if kind == "international" and mark < N.BIG_MILESTONE[stat]:
                         continue
                     key = f"ms:{r.scope}:{pid}:{stat}:{mark}"
                     if key in sent or key in seen:
@@ -221,15 +229,24 @@ def run(careers, sent, now=None):
                         note=f"Before this match: {base:,} (Cricsheet). This match: {got} {stat}. {ev['summary']}",
                         caption=f"{mark:,} {sn} {stat.upper()} 🙌\n\n{s['name']} brings up {mark:,} {sn} {stat} for {s['team']}.\n\n#Cricket",
                         priority=95))
-        # ---- stat nuggets for big performances (internationals)
-        if hist is not None and fmt:
-            alerts += _nuggets(ev, fmt, gender, teams, ci2cs, dn, hist, sent, seen)
+        # ---- stat angles for big (and bad) performances
+        if hist and fmt:
+            from . import nuggets as N
+            host = None if scopes[0] in C.NUGGET_LEAGUES else N.host_for(ev["city"], _plain(ev.get("home") or ""), ctx.ht)
+            tag = "#" + ev["short"].replace(" ", "") if ev.get("short") else "#Cricket"
+            try:
+                alerts += LA.match_alerts(ev, fmt, gender, scopes[0], teams, ci2cs, host, sent, seen, log, tag)
+            except Exception as e:  # noqa: BLE001
+                import traceback
+                print("angles failed", ev["id"], e)
+                traceback.print_exc()
         if ev["status"] == "post":
             sent[fkey] = now.isoformat()
+    R.save(log)
     return alerts
 
 
-def _nuggets(ev, fmt, gender, teams, ci2cs, dn, hist, sent, seen):
+def _nuggets_old(ev, fmt, gender, teams, ci2cs, dn, hist, sent, seen):
     from . import nuggets as N
     hb, hw, ht = hist
     f = {"T20": "T20I"}.get(fmt, fmt)

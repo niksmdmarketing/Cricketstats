@@ -25,6 +25,12 @@ jobs:
           path: data
           key: cricsheet-${{ github.run_id }}
           restore-keys: cricsheet-
+      - name: Restore history tables
+        uses: actions/cache/restore@v4
+        with:
+          path: state/hist
+          key: hist-${{ github.run_id }}
+          restore-keys: hist-
       - name: Update data, detect records, send alerts
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
@@ -40,6 +46,12 @@ jobs:
         with:
           path: data
           key: cricsheet-${{ github.run_id }}
+      - name: Save history tables for the hourly job
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: state/hist
+          key: hist-${{ github.run_id }}
       - name: Save state
         if: always()
         run: |

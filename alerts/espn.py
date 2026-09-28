@@ -52,9 +52,19 @@ def events():
 _cache = {}
 
 
+def _int(v):
+    try:
+        return int(float(v))
+    except (TypeError, ValueError):
+        return None
+
+
 def detail(ev):
     """Full match detail (cached per run):
-    players: {cricinfo_id: {name, team, runs, wkts, balls, conceded, bat: [(inn, runs, balls, out)], bowl: [(inn, wkts, conceded)]}}
+    players: {cricinfo_id: {name, team, runs, wkts, balls, conceded, captain,
+              bat: [(inn, runs, balls, out)], bowl: [(inn, wkts, conceded)],
+              batx: [{inn, pos, runs, balls, out, fours, sixes, kind, bowler, over}],
+              bowlx: [{inn, wkts, conceded, balls, maidens, dots, pp_wkts, death_wkts}]}}
     innings: [(team, period, runs, wickets, overs, target)], winner: team name or None"""
     if ev["id"] in _cache:
         return _cache[ev["id"]]
@@ -68,7 +78,8 @@ def detail(ev):
             if not pid:
                 continue
             rec = players.setdefault(pid, {"name": a.get("displayName") or a.get("name"), "team": team,
-                                           "runs": 0, "wkts": 0, "balls": 0, "conceded": 0, "bat": [], "bowl": []})
+                                           "runs": 0, "wkts": 0, "balls": 0, "conceded": 0, "bat": [], "bowl": [],
+                                           "batx": [], "bowlx": [], "captain": bool(p.get("captain"))})
             for per in p.get("linescores") or []:
                 inn = per.get("period")
                 for ls in per.get("linescores") or []:
@@ -78,14 +89,33 @@ def detail(ev):
                             st[s_.get("name")] = s_.get("value")
                     if "runs" in st and "ballsFaced" in st and int(float(st.get("batted") or 0)):
                         r, b = int(float(st.get("runs") or 0)), int(float(st.get("ballsFaced") or 0))
+                        o = int(float(st.get("outs") or 0))
                         rec["runs"] += r
                         rec["balls"] += b
-                        rec["bat"].append((inn, r, b, int(float(st.get("outs") or 0))))
+                        rec["bat"].append((inn, r, b, o))
+                        od = ((ls.get("batting") or {}).get("outDetails") or {}) if o else {}
+                        ov = ((od.get("details") or {}).get("over") or {}).get("overs")
+                        rec["batx"].append(dict(inn=inn, pos=_int(st.get("battingPosition")), runs=r, balls=b, out=o,
+                                                fours=_int(st.get("fours")), sixes=_int(st.get("sixes")),
+                                                kind=od.get("dismissalCard"), bowler=str((od.get("bowler") or {}).get("id") or "") or None,
+                                                over=float(ov) if ov not in (None, "") else None))
                     if "wickets" in st and "conceded" in st and float(st.get("balls") or 0) > 0:
                         w, c_ = int(float(st.get("wickets") or 0)), int(float(st.get("conceded") or 0))
                         rec["wkts"] += w
                         rec["conceded"] += c_
                         rec["bowl"].append((inn, w, c_))
+                        rec["bowlx"].append(dict(inn=inn, wkts=w, conceded=c_, balls=_int(st.get("balls")),
+                                                 maidens=_int(st.get("maidens")), dots=_int(st.get("dots"))))
+    # powerplay / death wickets per bowler, from the over each batter was dismissed in
+    for rec in players.values():
+        for bx in rec["batx"]:
+            if bx["bowler"] and bx["over"] is not None and bx["bowler"] in players:
+                bw = players[bx["bowler"]]
+                for d in bw["bowlx"]:
+                    if d["inn"] == bx["inn"] or len(bw["bowlx"]) == 1:
+                        ov = int(bx["over"]) + 1        # 0.3 -> 1st over
+                        d.setdefault("wicket_overs", []).append(ov)
+                        break
     innings, winner = [], None
     for comp in ((js.get("header") or {}).get("competitions") or [])[:1]:
         for c in comp.get("competitors") or []:

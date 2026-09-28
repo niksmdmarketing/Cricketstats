@@ -43,13 +43,10 @@ def connect():
 
 def _eligible(mrow):
     comp = mrow["competition"]
-    if C.INTERNATIONALS_ONLY:
-        return mrow["team_type"] == "international" and {mrow["team1"], mrow["team2"]} <= C.FULL_MEMBERS
-    if comp in C.MAJOR_LEAGUES:
-        return True
     if mrow["team_type"] == "international":
-        return mrow["team1"] in C.FULL_MEMBERS or mrow["team2"] in C.FULL_MEMBERS
-    return False
+        fm = {mrow["team1"], mrow["team2"]} & C.FULL_MEMBERS
+        return len(fm) == 2 if C.BOTH_FULL_MEMBERS else bool(fm)
+    return (not C.INTERNATIONALS_ONLY) and comp in C.NUGGET_LEAGUES
 
 
 def _ord(n):
@@ -235,7 +232,7 @@ def milestone_alerts(before, after, new_ids_players):
             continue
         if r.kind == "league" and r.scope not in C.T20_LEAGUES:
             continue
-        if C.INTERNATIONALS_ONLY and r.kind != "international":
+        if r.kind == "t20_all" or (r.kind != "international" and (C.INTERNATIONALS_ONLY or r.scope not in C.NUGGET_LEAGUES)):
             continue
         rs, ws = C.MILESTONES[r.kind]
         mins = C.MIN_MILESTONE[r.kind]
