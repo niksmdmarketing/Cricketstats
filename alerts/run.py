@@ -166,8 +166,8 @@ def preview():
     """Run the live pass without sending anything; write what would be posted to state/last_preview.log."""
     from . import watch
     import alerts.telegram as T
-    sent = load_sent()
-    alerts = watch.run(pd.read_parquet(CAREERS), dict(sent))
+    sent = {k: v for k, v in load_sent().items() if not k.startswith(("final:", "nug:", "digest:"))}
+    alerts = watch.run(pd.read_parquet(CAREERS), sent)
     lines = []
     for a in sorted(alerts, key=lambda a: -a.get("priority", 0)):
         lines.append(f"[{a.get('priority')}] {a.get('family', a.get('kind'))} | {a.get('headline')}\n{a.get('caption')}\n{a.get('note', '')}\n")
