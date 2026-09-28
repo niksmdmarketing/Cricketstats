@@ -223,7 +223,7 @@ def match():
                   intl_class=str(cls.get("internationalClassId") or "0"),
                   teams=[(c.get("team") or {}).get("displayName") for c in cs],
                   city=((venue.get("address") or {}).get("city")) or "", location=venue.get("fullName") or "",
-                  short=((js.get("header") or {}).get("competitions") or [{}])[0].get("shortName", "") or "",
+                  short=" v ".join((c.get("team") or {}).get("abbreviation", "") for c in cs),
                   home=next(((c.get("team") or {}).get("displayName") for c in cs if c.get("homeAway") == "home"), None))
         espn._cache.pop(eid, None)
         fmt, gender, scopes, teams = classify(ev)

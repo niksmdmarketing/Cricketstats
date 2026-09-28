@@ -65,6 +65,22 @@ def surname(name):
     return str(name)
 
 
+def span_dates(d0, d1):
+    """Calendar span: '3 years, 20 days' (leap years handled)."""
+    d0, d1 = pd.Timestamp(d0).normalize(), pd.Timestamp(d1).normalize()
+    y = d1.year - d0.year
+    if (d1.month, d1.day) < (d0.month, d0.day):
+        y -= 1
+    if y <= 0:
+        return span((d1 - d0).days)
+    try:
+        anchor = d0.replace(year=d0.year + y)
+    except ValueError:            # 29 Feb
+        anchor = d0.replace(year=d0.year + y, day=28)
+    d = (d1 - anchor).days
+    return f"{y} year{'s' * (y > 1)}" + (f", {d} day{'s' * (d != 1)}" if d else "")
+
+
 def span(days):
     y, d = divmod(int(days), 365)
     if y and d:
@@ -180,7 +196,7 @@ class Ctx:
 
 
 def F(family, text, bonus=0, strength=0):
-    return (BASE[family] + bonus + strength, family, text)
+    return (BASE[family] + bonus + min(strength, 20), family, text)
 
 
 def is_league(p):
@@ -240,11 +256,35 @@ def sex(p):
 
 
 # ======================================================================= drought ("first since")
-def drought(ctx, p, hit, verb, noun):
-    """hit: prior rows with the same feat (in scope). Lenses: in country, vs opponent, at home, overall."""
+def _games(ctx, p, lens, since=None):
+    """The team's matches that fit a lens (in a country / vs an opponent / at home / overall), after a date."""
+    t = ctx.scope(ctx.ht, p)
+    t = t[t.team == p.team]
+    if lens == "country":
+        t = t[t.host == p.host]
+    elif lens == "opp":
+        t = t[t.opp == p.opp]
+    elif lens == "home":
+        t = t[t.host == p.team]
+    elif lens == "city":
+        t = t[t.city == p.city]
+    if since is not None:
+        t = t[t.date > since]
+    return t.match_id.nunique()
+
+
+def drought(ctx, p, hit, verb, noun, mates=()):
+    """hit: prior rows with the same feat (in scope). Lenses: in country, vs opponent, at home, overall.
+    A drought only counts if the team played enough matches in between (not just a long gap between fixtures).
+    mates: team-mates who did the same thing in this match."""
     out = []
     dem = who(p)
     lenses = []
+    need = 2 if p.fmt == "Test" else 3
+    also = ""
+    if mates:
+        names = [surname(n) for n in mates]
+        also = f" — {' and '.join(names)} did it too in this match"
     if not is_league(p):
         if isinstance(p.host, str) and p.host and p.host != p.team:
             lenses.append(("country", hit[(hit.team == p.team) & (hit.host == p.host)], f"the first {dem} to {verb} in {p.host}"))
@@ -258,12 +298,12 @@ def drought(ctx, p, hit, verb, noun):
         if len(rows):
             last = rows.sort_values("date").iloc[-1]
             gap = (p.date - last.date).days
-            if gap >= MIN_GAP_DAYS:
+            if gap >= MIN_GAP_DAYS and _games(ctx, p, lens, last.date) >= need:
                 named = f" since {ctx.nm(last.player_id, last.player)} in {when(last.date)}" if lens != "team" else f" since {when(last.date)}"
-                out.append(F("drought", lead + named, strength=min(12, gap // 365 * 2) + (6 if lens in ("country", "opp") else 0)))
+                out.append(F("drought", lead + named + also, strength=min(12, gap // 365 * 2) + (6 if lens in ("country", "opp") else 0)))
                 break
-        elif lens in ("country", "opp", "city") and len(hit[hit.team == p.team]) >= 3:
-            out.append(F("drought", lead + (" ever" if era(p, ctx) == "ever" else f" in records going back to {COVER[p.gender]}"), strength=8))
+        elif lens in ("country", "opp", "city") and _games(ctx, p, lens) >= need + 2:
+            out.append(F("drought", lead + (" ever" if era(p, ctx) == "ever" else f" in records going back to {COVER[p.gender]}") + also, strength=8))
             break
     # the player's own gap
     mine = hit[hit.player_id == p.pid]
@@ -271,7 +311,7 @@ def drought(ctx, p, hit, verb, noun):
         last = mine.date.max()
         gap = (p.date - last).days
         if gap >= 365:
-            out.append(F("comeback", f"his first {noun} in {span(gap)}", strength=min(12, gap // 365 * 3)))
+            out.append(F("comeback", f"his first {noun} in {span_dates(last, p.date)}", strength=min(12, gap // 365 * 3)))
     return out
 
 
@@ -873,6 +913,13 @@ def age_facts(ctx, p, df, cond, noun):
     hit = hit[hit.age.notna()]
     out = []
     y = age // 365
+    for mpid, _, v in p.extra.get("mates_bat" if df is ctx.hb else "mates_bowl", []):
+        md = ctx.dob(mpid)
+        if md is not None and cond(pd.DataFrame({"runs": [v], "wkts": [v]})).iloc[0]:
+            if age > 35 * 365 and md < dob:
+                return []
+            if age < 23 * 365 and md > dob:
+                return []
     if age < 23 * 365:
         younger = hit[hit.age < age].sort_values("date")
         if not len(younger) and len(hit) >= 10:
@@ -978,7 +1025,7 @@ def batting(ctx, p):
         noun = {200: "double hundred", 150: "score of 150+", 100: "hundred"}[lvl]
         verb = {200: f"score {art2(p)} double hundred", 150: f"score 150+ in {art(p)}", 100: f"score {art2(p)} hundred"}[lvl]
         hit = h[h.runs >= lvl]
-        facts += drought(ctx, p, hit, verb, f"{P} {noun}")
+        facts += drought(ctx, p, hit, verb, f"{P} {noun}", [n for _, n, r in p.extra.get("mates_bat", []) if r >= lvl])
         mine = hit[hit.player_id == p.pid]
         if not len(mine):
             facts.append(F("comeback", f"his maiden {P} {noun}", bonus=-10 + (10 if lvl >= 150 else 0)))
@@ -1019,7 +1066,7 @@ def bowling(ctx, p):
         lvl = 5 if p.wkts >= 5 else 4
         short = "five-for" if lvl == 5 else "four-wicket haul"
         hit = h[h.wkts >= lvl]
-        facts += drought(ctx, p, hit, f"take {art2(p)} {short}", f"{P} {short}")
+        facts += drought(ctx, p, hit, f"take {art2(p)} {short}", f"{P} {short}", [n for _, n, w in p.extra.get("mates_bowl", []) if w >= lvl])
         if not len(hit[hit.player_id == p.pid]):
             facts.append(F("comeback", f"his maiden {P} {short}", bonus=-8))
         facts += age_facts(ctx, p, ctx.hw, lambda d: d.wkts >= lvl, f"{art2(p)} {short}")

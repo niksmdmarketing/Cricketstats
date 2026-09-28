@@ -164,10 +164,12 @@ class Legends:
                 if n == 1:
                     out.append(fact("legend_club", f"the first player ever to {mark:,} {sex}{P} {many}", 40))
                 elif n <= 4:
-                    out.append(fact("legend_club", f"joins {lst(club, 3)} as the only players with {mark:,} {sex}{P} {many}", 25))
+                    out.append(fact("legend_club", f"joins {lst(club, 3)} as the only players with {mark:,} {sex}{P} {many}", 40))
                 elif n <= 15:
                     out.append(fact("legend_club", f"only the {ordn(n)} player to reach {mark:,} {sex}{P} {many}", 10))
                 nclub = club[club.team == team]
+                if n <= 4 and len(nclub) == len(club):
+                    continue          # the national club is the same list; don't repeat it
                 if len(nclub) == 0 and n > 1:
                     out.append(fact("legend_club", f"the first {team} player to reach {mark:,} {sex}{P} {many}", 20))
                 elif 1 <= len(nclub) <= 2:

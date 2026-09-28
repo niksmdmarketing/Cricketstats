@@ -279,18 +279,24 @@ def team_facts(winner, loser, fmt, gender, host, match_id, ht):
     now = pd.Timestamp.now()
     facts = []
     wins = res[(res.team == winner) & (res.won == True)]  # noqa: E712
+
+    def played_since(mask, d):
+        return res[mask & (res.date > pd.Timestamp(d))].match_id.nunique() >= (2 if fmt == "Test" else 3)
     if host and host != winner:
         w_in = wins[wins.host == host]
-        if len(w_in) and (now - pd.Timestamp(w_in.date.max())).days >= MIN_GAP_DAYS:
+        if len(w_in) and (now - pd.Timestamp(w_in.date.max())).days >= MIN_GAP_DAYS \
+                and played_since((res.team == winner) & (res.host == host), w_in.date.max()):
             facts.append(fact("team_first_win_in_country", f"{winner}'s first {fmt} win in {host} since {when(w_in.date.max())}"))
         elif not len(w_in) and len(res[(res.team == winner) & (res.host == host)]) >= 3:
             facts.append(fact("first_in_records", f"{winner}'s first {fmt} win in {host} in records going back to {COVER[gender]}", bonus=30))
     h2h = wins[wins.opp == loser]
-    if len(h2h) and (now - pd.Timestamp(h2h.date.max())).days >= MIN_GAP_DAYS:
+    if len(h2h) and (now - pd.Timestamp(h2h.date.max())).days >= MIN_GAP_DAYS \
+            and played_since((res.team == winner) & (res.opp == loser), h2h.date.max()):
         facts.append(fact("team_first_win_vs_opp", f"{winner}'s first {fmt} win over {loser} since {when(h2h.date.max())}"))
     if host == loser:
         hl = res[(res.team == loser) & (res.host == loser) & (res.won == False)]  # noqa: E712
-        if len(hl) and (now - pd.Timestamp(hl.date.max())).days >= MIN_GAP_DAYS:
+        if len(hl) and (now - pd.Timestamp(hl.date.max())).days >= MIN_GAP_DAYS \
+                and played_since((res.team == loser) & (res.host == loser), hl.date.max()):
             facts.append(fact("team_first_home_defeat", f"{loser}'s first home {fmt} defeat since {when(hl.date.max())}"))
     run = _run(res[(res.team == loser) & (res.opp == winner)].won.fillna(False).astype(bool).tolist(), bool)
     if run >= 5:
