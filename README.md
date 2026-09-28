@@ -78,3 +78,13 @@ data covers the whole history (men's T20Is and the leagues); otherwise lines say
 
 Jobs: `build.yml` (refresh data only), `preview.yml` (live pass without sending; see `state/last_preview.log`),
 `statsguru.yml` (weekly all-time snapshot).
+
+## Analysis layer and daily content
+- `alerts/analysis.py`: ranks performances by how rare they are (share of innings that reach them), adds peer
+  baselines ("top-order average in that time: 34"), and adds angles for share of team runs, rescue acts, team
+  impact ("won all 12 ODIs when he takes four"), hat-tricks and bursts, finals/knockouts, conversion rate and
+  scoring relative to the rest of the match. Where a visual suits the stat, the alert carries a chart idea and the
+  exact numbers to build it (no charts are rendered by the bot).
+- `alerts/scheduled.py` + `morning.yml` (~7am Melbourne): one silent morning pack with match previews, on this
+  day, series wraps, Monday leaderboards and Thursday comparisons, plus yesterday's weaker options in one list.
+  Late Cricsheet records also go into that list instead of pinging.
