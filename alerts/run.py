@@ -310,6 +310,20 @@ def checktigzig():
     ], "n")
     log("recent (>=2026-09-25) matches in match_info:", val, "|", used if val is None else "")
 
+    for tbl in ("match_info_odi_men", "match_info_odi_women", "match_info_t20_men", "match_info_t20_women",
+                "match_info_test_men", "match_info_test_women", "match_info_ipl"):
+        try:
+            rows = q("postgres", f"SELECT MIN(start_date) mn, MAX(start_date) mx, COUNT(*) n FROM {tbl}")
+        except Exception as e:  # noqa: BLE001
+            log(f"{tbl}: query failed -> {e}")
+            continue
+        r = rows[0] if rows else {}
+        log(f"{tbl}: {r.get('n')} matches, {r.get('mn')} to {r.get('mx')}")
+    for fmt in ("ODI", "T20I", "Test"):
+        d = hb[hb.format == fmt].date
+        if len(d):
+            log(f"our hist_bat: {fmt} covers {d.min().date()} to {d.max().date()} ({d.dt.date.nunique()} distinct dates)")
+
     ours_kohli = hb[(hb.player == "V Kohli") & (hb.format == "ODI")]
     our_runs, our_100s = int(ours_kohli.runs.sum()), int((ours_kohli.runs >= 100).sum())
     log(f"our hist_bat: V Kohli ODI runs={our_runs}, 100s={our_100s}, innings={len(ours_kohli)}")
