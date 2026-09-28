@@ -4,4 +4,3 @@ recent (>=2026-09-25) matches in match_info: 0 |
 our hist_bat: V Kohli ODI runs=14819, 100s=54, innings=299
 tigzig [postgres.ball_by_ball_odi_men] V Kohli ODI runs=14819  (query: SELECT SUM(runs_off_bat) runs, COUNT(DISTINCT match_id) inns FROM ball_by_ball_odi_men WHERE striker='V Kohli')
 our hist_bowl: Kuldeep Yadav ODI wickets=191, innings=114
-wrote state/last_tigzig.log
