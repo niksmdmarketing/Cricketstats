@@ -1,2 +1,11 @@
-India v West Indies 1st ODI Thiruvananthapuram -> 6 alerts
-South Africa v Australia 2nd ODI Johannesburg -> 5 alerts
+Traceback (most recent call last):
+  File "/home/runner/work/Cricketstats/Cricketstats/alerts/run.py", line 296, in <module>
+    {"daily": daily, "live": live, "test": test, "status": status, "preview": preview, "build": build, "morning": morning, "match": match}[sys.argv[1] if len(sys.argv) > 1 else "daily"]()
+  File "/home/runner/work/Cricketstats/Cricketstats/alerts/run.py", line 235, in match
+    got = live_angles.match_alerts(ev, fmt, gender, scopes[0], teams, ci2cs, host, sent, set(), log, tag)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/work/Cricketstats/Cricketstats/alerts/live_angles.py", line 162, in match_alerts
+    perf.extra["mates_bat"] = mates(team, ci, "bat")
+                              ^^^^^^^^^^^^^^^^^^^^^^
+TypeError: 'list' object is not callable
+
