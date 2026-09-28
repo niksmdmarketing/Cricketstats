@@ -403,6 +403,38 @@ def datatest():
     print("TigZig data check sent to Telegram")
 
 
+def lastinnings():
+    """One-off: dump a player's last N innings (runs, out/not out, date, opp) plus career average,
+    as JSON to state/last_innings.json. python -m alerts.run lastinnings "<name substring>" <fmt> <n>"""
+    import json
+
+    from . import history, recent
+
+    name_sub = sys.argv[2] if len(sys.argv) > 2 else "Gill"
+    fmt = sys.argv[3] if len(sys.argv) > 3 else "ODI"
+    n = int(sys.argv[4]) if len(sys.argv) > 4 else 10
+    hist_dir = STATE / "hist"
+    h = history.load(hist_dir if hist_dir.exists() else STATE)
+    hb = h.get("hist_bat")
+    if hb is None:
+        print("no local history tables available")
+        return
+    hb = recent.merge(h)["hist_bat"]
+    matches = hb[hb.player.str.contains(name_sub, case=False, na=False) & (hb.format == fmt)]
+    if matches.empty:
+        print(f"no rows for {name_sub!r} in {fmt}")
+        return
+    pid = matches.player_id.value_counts().idxmax()   # resolve to one identity across name spellings
+    rows = hb[(hb.player_id == pid) & (hb.format == fmt)].sort_values("date")
+    avg = round(rows.runs.sum() / max(1, rows.is_out.sum()), 2)
+    last = rows.tail(n)
+    out = dict(player=rows.player.iloc[-1], format=fmt, career_average=avg, innings=[
+        dict(date=str(r.date.date()), opp=r.opp, runs=int(r.runs), out=bool(r.is_out))
+        for r in last.itertuples()])
+    print(json.dumps(out, indent=2))
+    (STATE / "last_innings.json").write_text(json.dumps(out, indent=2))
+
+
 def build():
     """Refresh data, history tables and player metadata without sending anything."""
     from . import build_data, history, stats
@@ -460,7 +492,8 @@ if __name__ == "__main__":
     try:
         {"daily": daily, "live": live, "test": test, "status": status, "preview": preview, "build": build,
          "morning": morning, "match": match, "checktigzig": checktigzig,
-         "datatest": datatest, "listchats": listchats}[sys.argv[1] if len(sys.argv) > 1 else "daily"]()
+         "datatest": datatest, "listchats": listchats,
+         "lastinnings": lastinnings}[sys.argv[1] if len(sys.argv) > 1 else "daily"]()
     except Exception:  # print the error with the bot token removed (logs are public)
         tok = os.environ.get("TELEGRAM_BOT_TOKEN") or "~no-token~"
         print(traceback.format_exc().replace(tok, "***"))
