@@ -125,7 +125,7 @@ def match_alerts(ev, fmt, gender, comp, teams, ci2cs, host, sent, seen, log, tag
                     return x["fow"][1], x["fow"][0]
         return None, None
 
-    def mates(team, me, kind):
+    def mates_of(team, me, kind):
         out_ = []
         for c2, q in players.items():
             if c2 == me or _plain(q["team"]) != team or not ci2cs.get(c2):
@@ -159,7 +159,7 @@ def match_alerts(ev, fmt, gender, comp, teams, ci2cs, host, sent, seen, log, tag
             mates = [x["runs"] for q in players.values() if _plain(q["team"]) == team and q is not p
                      for x in q.get("batx", []) if x["inn"] == bx["inn"]]
             es, ew = entry(team, bx["inn"], bx["pos"])
-            perf.extra["mates_bat"] = mates(team, ci, "bat")
+            perf.extra["mates_bat"] = mates_of(team, ci, "bat")
             perf.extra.update(team_total=totals.get((team, bx["inn"])), others_best=max(mates) if mates else 0,
                               entry_score=es, entry_wkts=ew, stage=stage,
                               others_runs=tot_runs - bx["runs"], others_balls=tot_balls - (bx["balls"] or 0))
@@ -176,7 +176,7 @@ def match_alerts(ev, fmt, gender, comp, teams, ci2cs, host, sent, seen, log, tag
             perf = A.Perf(**base(pid, name, team), inn=bw["inn"], wkts=bw["wkts"], conceded=bw["conceded"], bballs=bw["balls"],
                           pp_wkts=sum(o <= pp for o in overs) if f != "Test" else None,
                           death_wkts=sum(o >= death for o in overs) if f != "Test" else None, star=sw)
-            perf.extra["mates_bowl"] = mates(team, ci, "bowl")
+            perf.extra["mates_bowl"] = mates_of(team, ci, "bowl")
             perf.extra.update(stage=stage, wicket_balls=[b for b in bw.get("wicket_balls", []) if b is not None])
             perf.extra["dismissed"] = [dict(pid=ci2cs.get(bci), name=players[bci]["name"])
                                        for bci, bp in players.items() for x in bp.get("batx", [])
