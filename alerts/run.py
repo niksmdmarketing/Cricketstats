@@ -254,6 +254,85 @@ def match():
         rotation.save(log)
 
 
+def checktigzig():
+    """One-off: sanity-check our own history tables against the free Tigzig Cricsheet-based SQL API
+    (https://db-mcp.tigzig.com). Prints a report to state/last_tigzig.log; sends nothing."""
+    import requests
+
+    from . import history
+
+    lines = []
+
+    def log(*a):
+        s = " ".join(str(x) for x in a)
+        print(s)
+        lines.append(s)
+
+    def q(engine, sql):
+        r = requests.get(f"https://db-mcp.tigzig.com/v1/query/{engine}",
+                          params={"sql": sql, "format": "json"}, timeout=30)
+        r.raise_for_status()
+        j = r.json()
+        if j.get("rows") is None:
+            raise ValueError(j)
+        return [dict(zip(j["columns"], row)) for row in j["rows"]]
+
+    def first_that_works(engine, queries, key):
+        """Try candidate SQL strings in order (table/column names aren't documented), return (value, sql-used)."""
+        errs = []
+        for sql in queries:
+            try:
+                rows = q(engine, sql)
+                return (rows[0].get(key) if rows else None), sql
+            except Exception as e:  # noqa: BLE001
+                errs.append(f"{sql[:60]}... -> {e}")
+        return None, "; ".join(errs)
+
+    hist_dir = STATE / "hist"
+    h = history.load(hist_dir if hist_dir.exists() else STATE)
+    hb, hw = h.get("hist_bat"), h.get("hist_bowl")
+    if hb is None:
+        log("no local history tables available (run build first)")
+        (STATE / "last_tigzig.log").write_text("\n".join(lines))
+        return
+
+    for engine in ("duckdb", "postgres"):
+        try:
+            rows = q(engine, "SELECT table_name FROM information_schema.tables ORDER BY 1")
+            log(f"[{engine}] tables:", [r["table_name"] for r in rows])
+        except Exception as e:  # noqa: BLE001
+            log(f"[{engine}] table listing failed:", e)
+
+    # coverage / freshness: does it already have the two ODIs we processed on 2026-09-27?
+    val, used = first_that_works("postgres", [
+        "SELECT COUNT(*) n FROM match_info WHERE start_date >= '2026-09-25'",
+        "SELECT COUNT(*) n FROM match_info WHERE start_date::date >= DATE '2026-09-25'",
+    ], "n")
+    log("recent (>=2026-09-25) matches in match_info:", val, "|", used if val is None else "")
+
+    ours_kohli = hb[(hb.player == "V Kohli") & (hb.format == "ODI")]
+    our_runs, our_100s = int(ours_kohli.runs.sum()), int((ours_kohli.runs >= 100).sum())
+    log(f"our hist_bat: V Kohli ODI runs={our_runs}, 100s={our_100s}, innings={len(ours_kohli)}")
+    for engine, table in (("postgres", "ball_by_ball_odi_men"), ("postgres", "odi_ball_by_ball"),
+                          ("postgres", "ball_by_ball")):
+        val, used = first_that_works(engine, [
+            f"SELECT SUM(runs_off_bat) runs, COUNT(DISTINCT match_id) inns FROM {table} "
+            f"WHERE striker='V Kohli'" + (" AND match_type='ODI'" if table == "ball_by_ball" else "")],
+            "runs")
+        if val is not None:
+            log(f"tigzig [{engine}.{table}] V Kohli ODI runs={val}  (query: {used})")
+            break
+    else:
+        log("tigzig: couldn't find a working ball-by-ball table name for Kohli check - errors above")
+
+    ours_kuldeep = hw[(hw.player == "Kuldeep Yadav") & (hw.format == "ODI")]
+    our_wkts = int(ours_kuldeep.wkts.sum())
+    log(f"our hist_bowl: Kuldeep Yadav ODI wickets={our_wkts}, innings={len(ours_kuldeep)}")
+
+    (STATE / "last_tigzig.log").write_text("\n".join(lines))
+    print("wrote state/last_tigzig.log")
+
+
 def build():
     """Refresh data, history tables and player metadata without sending anything."""
     from . import build_data, history, stats
@@ -302,7 +381,8 @@ if __name__ == "__main__":
     import os
     import traceback
     try:
-        {"daily": daily, "live": live, "test": test, "status": status, "preview": preview, "build": build, "morning": morning, "match": match}[sys.argv[1] if len(sys.argv) > 1 else "daily"]()
+        {"daily": daily, "live": live, "test": test, "status": status, "preview": preview, "build": build,
+         "morning": morning, "match": match, "checktigzig": checktigzig}[sys.argv[1] if len(sys.argv) > 1 else "daily"]()
     except Exception:  # print the error with the bot token removed (logs are public)
         tok = os.environ.get("TELEGRAM_BOT_TOKEN") or "~no-token~"
         print(traceback.format_exc().replace(tok, "***"))
