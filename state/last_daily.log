@@ -5,7 +5,7 @@
 /opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/site-packages/rdata/conversion/_conversion.py:918: UserWarning: Missing constructor for R class "tbl". The constructor for class "data.frame" will be used instead.
   warnings.warn(
 Downloading https://cricsheet.org/downloads/recently_added_7_json.zip
-Cricsheet did not return a zip (will retry next run). First bytes: b'<!DOCTYPE html>\n<html lang="en">\n<head>\n  <meta charset="utf8">\n  <meta name="viewport" content="width=device-width,init'
+78 files in zip, 0 new
 latest match in data: 2026-09-17 00:00:00
 0 new matches, 0 recent enough to alert on
 sent 0 alerts
