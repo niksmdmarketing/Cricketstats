@@ -502,5 +502,23 @@
 "family": "_support",
 "pid": "d014d5ac",
 "hash": "414b4a707b"
+},
+{
+"ts": "2026-10-06T16:50:25.837661+00:00",
+"family": "drought",
+"pid": "85ec8e33",
+"hash": "dba060ca0f"
+},
+{
+"ts": "2026-10-06T16:50:25.837661+00:00",
+"family": "_support",
+"pid": "85ec8e33",
+"hash": "b889b9f22d"
+},
+{
+"ts": "2026-10-06T16:50:25.837661+00:00",
+"family": "_support",
+"pid": "85ec8e33",
+"hash": "c4bca919a8"
 }
 ]
