@@ -1,0 +1,37 @@
+[
+{
+"key": "hs:1529228:Shubman Gill",
+"match": "West Indies v India",
+"text": "Shubman Gill 223* (133b): 3rd-highest score in Men's ODI (since 2002)"
+},
+{
+"key": "odi200:1529228:Shubman Gill",
+"match": "West Indies v India",
+"text": "ODI DOUBLE HUNDRED: Shubman Gill 223 (133b)"
+},
+{
+"key": "chase:1529228",
+"match": "West Indies v India",
+"text": "India chase 406: 2nd-highest successful chase in Men's ODI (since 2002)"
+},
+{
+"key": "t20ton:1529230:SS Iyer",
+"match": "West Indies v India",
+"text": "T20I hundred: SS Iyer 102 (43b) for India v West Indies"
+},
+{
+"key": "fastfifty:1554979:E Brathwaite",
+"match": "Zimbabwe v West Indies",
+"text": "E Brathwaite: 20-ball fifty, joint-4th-fastest in Women's T20I (since 2009)"
+},
+{
+"key": "ms:Men's T20I:2e171977:wickets:100",
+"match": "",
+"text": "AR Patel (India) passes 100 T20I wickets: now 102 in 97 matches"
+},
+{
+"key": "ms:Men's ODI:1fc6ef83:runs:6000",
+"match": "",
+"text": "SD Hope (West Indies) passes 6,000 ODI runs: now 6,123 in 143 matches"
+}
+]
