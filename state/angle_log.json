@@ -1192,5 +1192,23 @@
 "family": "_support",
 "pid": "9ffd1ac1",
 "hash": "24fb8c4110"
+},
+{
+"ts": "2026-10-20T15:04:20.069181+00:00",
+"family": "drought",
+"pid": "9ffd1ac1",
+"hash": "a8f85065a7"
+},
+{
+"ts": "2026-10-20T15:04:20.069181+00:00",
+"family": "_support",
+"pid": "9ffd1ac1",
+"hash": "a951b60282"
+},
+{
+"ts": "2026-10-20T15:04:20.069181+00:00",
+"family": "_support",
+"pid": "9ffd1ac1",
+"hash": "eddc3e5453"
 }
 ]
