@@ -24,5 +24,5 @@ Traceback (most recent call last):
   File "/opt/hostedtoolcache/Python/3.12.15/x64/lib/python3.12/site-packages/pandas/core/indexes/base.py", line 6606, in _raise_if_missing
     raise KeyError(f"None of [{key}] are in the [{axis_name}]")
 KeyError: "None of [Index(['6s'], dtype='str')] are in the [columns]"
-angles failed 1539434 "None of [Index(['6s'], dtype='str')] are in the [columns]"
-sent 2 alerts
+angles failed 1555120 "None of [Index(['6s'], dtype='str')] are in the [columns]"
+sent 1 alerts
