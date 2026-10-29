@@ -1552,5 +1552,11 @@
 "family": "_support",
 "pid": "5f26f677",
 "hash": "c5cd751c3e"
+},
+{
+"ts": "2026-10-29T19:41:05.684840+00:00",
+"family": "drought",
+"pid": "4a461c24",
+"hash": "71c25e729b"
 }
 ]
