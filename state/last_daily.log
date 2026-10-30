@@ -4,36 +4,9 @@
   warnings.warn(
 /opt/hostedtoolcache/Python/3.12.15/x64/lib/python3.12/site-packages/rdata/conversion/_conversion.py:918: UserWarning: Missing constructor for R class "tbl". The constructor for class "data.frame" will be used instead.
   warnings.warn(
-Traceback (most recent call last):
-  File "/home/runner/work/Cricketstats/Cricketstats/alerts/watch.py", line 238, in run
-    alerts += LA.match_alerts(ev, fmt, gender, scopes[0], teams, ci2cs, host, sent, seen, log, tag)
-              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/home/runner/work/Cricketstats/Cricketstats/alerts/live_angles.py", line 174, in match_alerts
-    subj, facts = A.batting(ctx, perf)
-                  ^^^^^^^^^^^^^^^^^^^^
-  File "/home/runner/work/Cricketstats/Cricketstats/alerts/angles.py", line 1052, in batting
-    ctx.legends.facts(p.pid, p.name, p.team, p.fmt, p.gender, stat, got or 0, ctx.hb, ctx.hw, p.match_id,
-  File "/home/runner/work/Cricketstats/Cricketstats/alerts/legends.py", line 105, in facts
-    before, t = self.value(pid, stat, fmt, gender, hb, hw, exclude_match=match_id)
-                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/home/runner/work/Cricketstats/Cricketstats/alerts/legends.py", line 90, in value
-    t = self.table(stat, fmt, gender, hb, hw, exclude_match)
-        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/home/runner/work/Cricketstats/Cricketstats/alerts/legends.py", line 68, in table
-    d["value"] = d[cols].sum(axis=1)
-                 ~^^^^^^
-  File "/opt/hostedtoolcache/Python/3.12.15/x64/lib/python3.12/site-packages/pandas/core/frame.py", line 4336, in __getitem__
-    indexer = self.columns._get_indexer_strict(key, "columns")[1]
-              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/opt/hostedtoolcache/Python/3.12.15/x64/lib/python3.12/site-packages/pandas/core/indexes/base.py", line 6557, in _get_indexer_strict
-    self._raise_if_missing(keyarr, indexer, axis_name)
-  File "/opt/hostedtoolcache/Python/3.12.15/x64/lib/python3.12/site-packages/pandas/core/indexes/base.py", line 6606, in _raise_if_missing
-    raise KeyError(f"None of [{key}] are in the [{axis_name}]")
-KeyError: "None of [Index(['6s'], dtype='str')] are in the [columns]"
 Downloading https://cricsheet.org/downloads/recently_added_7_json.zip
 61 files in zip, 0 new
 latest match in data: 2026-10-25 00:00:00
 0 new matches, 0 recent enough to alert on
 sent 0 alerts
-angles failed 1550718 "None of [Index(['6s'], dtype='str')] are in the [columns]"
 sent 0 alerts
