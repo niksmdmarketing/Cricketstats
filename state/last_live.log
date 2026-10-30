@@ -25,4 +25,4 @@ Traceback (most recent call last):
     raise KeyError(f"None of [{key}] are in the [{axis_name}]")
 KeyError: "None of [Index(['6s'], dtype='str')] are in the [columns]"
 angles failed 1525661 "None of [Index(['6s'], dtype='str')] are in the [columns]"
-sent 0 alerts
+sent 1 alerts
