@@ -1732,5 +1732,11 @@
 "family": "_support",
 "pid": "efc04be7",
 "hash": "d099e00243"
+},
+{
+"ts": "2026-11-02T11:00:29.219716+00:00",
+"family": "quirk",
+"pid": "de69af96",
+"hash": "e13e61dc87"
 }
 ]
