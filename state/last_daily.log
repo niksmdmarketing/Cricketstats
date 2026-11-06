@@ -1,8 +1,8 @@
-/opt/hostedtoolcache/Python/3.12.15/x64/lib/python3.12/site-packages/rdata/conversion/_conversion.py:918: UserWarning: Missing constructor for R class "Date". The underlying R object is returned instead.
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/rdata/conversion/_conversion.py:918: UserWarning: Missing constructor for R class "Date". The underlying R object is returned instead.
   warnings.warn(
-/opt/hostedtoolcache/Python/3.12.15/x64/lib/python3.12/site-packages/rdata/conversion/_conversion.py:918: UserWarning: Missing constructor for R class "tbl_df". The constructor for class "tbl" will be used instead.
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/rdata/conversion/_conversion.py:918: UserWarning: Missing constructor for R class "tbl_df". The constructor for class "tbl" will be used instead.
   warnings.warn(
-/opt/hostedtoolcache/Python/3.12.15/x64/lib/python3.12/site-packages/rdata/conversion/_conversion.py:918: UserWarning: Missing constructor for R class "tbl". The constructor for class "data.frame" will be used instead.
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/rdata/conversion/_conversion.py:918: UserWarning: Missing constructor for R class "tbl". The constructor for class "data.frame" will be used instead.
   warnings.warn(
 Traceback (most recent call last):
   File "/home/runner/work/Cricketstats/Cricketstats/alerts/watch.py", line 238, in run
@@ -22,12 +22,12 @@ Traceback (most recent call last):
   File "/home/runner/work/Cricketstats/Cricketstats/alerts/legends.py", line 68, in table
     d["value"] = d[cols].sum(axis=1)
                  ~^^^^^^
-  File "/opt/hostedtoolcache/Python/3.12.15/x64/lib/python3.12/site-packages/pandas/core/frame.py", line 4336, in __getitem__
+  File "/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/pandas/core/frame.py", line 4336, in __getitem__
     indexer = self.columns._get_indexer_strict(key, "columns")[1]
               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/opt/hostedtoolcache/Python/3.12.15/x64/lib/python3.12/site-packages/pandas/core/indexes/base.py", line 6557, in _get_indexer_strict
+  File "/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/pandas/core/indexes/base.py", line 6557, in _get_indexer_strict
     self._raise_if_missing(keyarr, indexer, axis_name)
-  File "/opt/hostedtoolcache/Python/3.12.15/x64/lib/python3.12/site-packages/pandas/core/indexes/base.py", line 6606, in _raise_if_missing
+  File "/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/pandas/core/indexes/base.py", line 6606, in _raise_if_missing
     raise KeyError(f"None of [{key}] are in the [{axis_name}]")
 KeyError: "None of [Index(['6s'], dtype='str')] are in the [columns]"
 Downloading https://cricsheet.org/downloads/recently_added_7_json.zip
@@ -36,4 +36,4 @@ latest match in data: 2026-11-03 00:00:00
 0 new matches, 0 recent enough to alert on
 sent 0 alerts
 angles failed 1555123 "None of [Index(['6s'], dtype='str')] are in the [columns]"
-sent 1 alerts
+sent 0 alerts
