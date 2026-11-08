@@ -52,4 +52,4 @@ Traceback (most recent call last):
 KeyError: "None of [Index(['6s'], dtype='str')] are in the [columns]"
 angles failed 1555123 "None of [Index(['6s'], dtype='str')] are in the [columns]"
 angles failed 1553296 "None of [Index(['6s'], dtype='str')] are in the [columns]"
-sent 0 alerts
+sent 5 alerts
