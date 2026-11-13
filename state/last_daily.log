@@ -36,4 +36,4 @@ latest match in data: 2026-11-03 00:00:00
 0 new matches, 0 recent enough to alert on
 sent 0 alerts
 angles failed 1550711 "None of [Index(['6s'], dtype='str')] are in the [columns]"
-sent 2 alerts
+sent 0 alerts
