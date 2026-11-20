@@ -1,1 +1,17 @@
-sent 0 alerts
+Traceback (most recent call last):
+  File "/home/runner/work/Cricketstats/Cricketstats/alerts/watch.py", line 238, in run
+    alerts += LA.match_alerts(ev, fmt, gender, scopes[0], teams, ci2cs, host, sent, seen, log, tag)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/work/Cricketstats/Cricketstats/alerts/live_angles.py", line 193, in match_alerts
+    subj, facts = A.bowling(ctx, perf)
+                  ^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/work/Cricketstats/Cricketstats/alerts/angles.py", line 1087, in bowling
+    facts += lone_hand_bowl(ctx, p)
+             ^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/work/Cricketstats/Cricketstats/alerts/angles.py", line 810, in lone_hand_bowl
+    if m.won is False or m.won == 0:
+                         ^^^^^^^^^^
+  File "pandas/_libs/missing.pyx", line 462, in pandas._libs.missing.NAType.__bool__
+TypeError: boolean value of NA is ambiguous
+angles failed 1550712 boolean value of NA is ambiguous
+sent 5 alerts
