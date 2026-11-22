@@ -2770,5 +2770,11 @@
 "family": "carry",
 "pid": "d4550956",
 "hash": "f79ac2c311"
+},
+{
+"ts": "2026-11-22T16:37:40.599492+00:00",
+"family": "impact",
+"pid": "e8fa03ed",
+"hash": "7b57ccbacd"
 }
 ]
