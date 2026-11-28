@@ -2956,5 +2956,17 @@
 "family": "shift",
 "pid": "dff806f4",
 "hash": "c7bb7da857"
+},
+{
+"ts": "2026-11-28T01:57:59.557257+00:00",
+"family": "drought",
+"pid": "0a67aec0",
+"hash": "b381e14680"
+},
+{
+"ts": "2026-11-28T01:57:59.557257+00:00",
+"family": "_support",
+"pid": "0a67aec0",
+"hash": "2fc1b8ad69"
 }
 ]
